@@ -82,6 +82,15 @@
                 android:layout_marginTop="5dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
+            
+            <!-- VLC测试按钮 -->
+            <Button
+                android:id="@+id/vlc_test_button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15dp"
+                android:text="VLC RTP测试"
+                android:backgroundTint="#4CAF50" />
         </LinearLayout>
         <ImageView
             android:layout_width="300dp"

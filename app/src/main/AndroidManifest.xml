@@ -10,13 +10,17 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
         android:name=".MyApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:banner="@drawable/banner"
+        android:hardwareAccelerated="true"
         android:icon="@drawable/logo"
         android:label="@string/app_name"
         android:largeHeap="true"
@@ -24,7 +28,7 @@
         android:networkSecurityConfig="@xml/network"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyTV"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -38,19 +42,27 @@
             </intent-filter>
         </activity>
 
+        <!-- VLC测试Activity，用于验证RTP播放功能 -->
+        <activity
+            android:name=".VLCTestActivity"
+            android:exported="${isDebug}"
+            android:label="VLC RTP测试"
+            android:screenOrientation="landscape" />
+
+        <!-- RTP测试Activity，用于Meta20实体机性能验证 -->
+        <activity
+            android:name=".RTPTestActivity"
+            android:exported="${isDebug}"
+            android:label="RTP性能测试"
+            android:screenOrientation="landscape" />
+
         <receiver
             android:name=".BootReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </receiver>
-        <receiver
-            android:name=".NetworkChangeReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
             </intent-filter>
         </receiver>
 

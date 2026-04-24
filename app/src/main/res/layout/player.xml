@@ -22,4 +22,19 @@
         android:layout_gravity="center"
         app:resize_mode="fill"
         app:use_controller="false" />
+
+    <!-- 播放器状态和性能监控覆盖层 -->
+    <include
+        android:id="@+id/player_status_container"
+        layout="@layout/player_status_overlay" />
+
+    <!-- 播放器控制面板 -->
+    <include
+        android:id="@+id/player_control_container"
+        layout="@layout/player_control_panel" />
+
+    <!-- 性能监控面板 -->
+    <include
+        android:id="@+id/performance_monitor_container"
+        layout="@layout/performance_monitor_panel" />
 </FrameLayout>

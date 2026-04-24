@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/player_control_panel"
+    android:layout_width="300dp"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom|start"
+    android:layout_margin="16dp"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_background"
+    android:padding="16dp"
+    android:visibility="gone">
+
+    <!-- 控制面板标题 -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="播放器控制面板"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"/>
+
+    <!-- 播放器类型选择 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="播放器类型:"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:layout_marginEnd="8dp"/>
+
+        <RadioGroup
+            android:id="@+id/player_type_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/radio_exo_player"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ExoPlayer"
+                android:textColor="@color/white"
+                android:buttonTint="@color/light_blue"/>
+
+            <RadioButton
+                android:id="@+id/radio_vlc_player"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="VLC播放器"
+                android:textColor="@color/white"
+                android:buttonTint="@color/light_blue"
+                android:layout_marginStart="16dp"/>
+        </RadioGroup>
+    </LinearLayout>
+
+    <!-- 性能模式选择 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="性能模式:"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp"/>
+
+        <Spinner
+            android:id="@+id/performance_mode_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/light_blue"/>
+    </LinearLayout>
+
+    <!-- 缓存设置 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="网络缓存:"
+                android:textColor="@color/white"
+                android:textSize="14sp"/>
+
+            <TextView
+                android:id="@+id/cache_value_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1000 ms"
+                android:textColor="@color/light_blue"
+                android:textSize="14sp"
+                android:layout_marginStart="8dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="(ms)"
+                android:textColor="@color/gray"
+                android:textSize="12sp"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/cache_seekbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="5000"
+            android:progress="1000"
+            android:progressTint="@color/light_blue"/>
+    </LinearLayout>
+
+    <!-- 解码器选项 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="12dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="解码器选项:"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp"/>
+
+        <CheckBox
+            android:id="@+id/check_hardware_decoding"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="硬件解码"
+            android:textColor="@color/white"
+            android:buttonTint="@color/light_blue"
+            android:checked="true"/>
+
+        <CheckBox
+            android:id="@+id/check_rtsp_tcp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="RTSP TCP模式"
+            android:textColor="@color/white"
+            android:buttonTint="@color/light_blue"
+            android:layout_marginTop="4dp"/>
+    </LinearLayout>
+
+    <!-- 控制按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/apply_settings_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="应用设置"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:backgroundTint="@color/light_blue"/>
+
+        <Button
+            android:id="@+id/reset_settings_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="重置"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:backgroundTint="@color/gray"
+            android:layout_marginStart="12dp"/>
+
+        <Button
+            android:id="@+id/close_panel_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="关闭"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:backgroundTint="@color/red"
+            android:layout_marginStart="12dp"/>
+    </LinearLayout>
+
+</LinearLayout>

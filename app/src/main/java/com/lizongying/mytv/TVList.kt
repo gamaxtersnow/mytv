@@ -12,6 +12,19 @@ object TVList {
             "央视" to listOf(
                 TV(
                     0,
+                    "RTP测试",
+                    "RTP测试",
+                    listOf("rtp://239.3.1.173:8001"),
+                    "测试",
+                    "",
+                    "",
+                    "",
+                    ProgramType.RTP,
+                    needToken = false,
+                    mustToken = false
+                ),
+                TV(
+                    0,
                     "CCTV1 综合",
                     "CCTV1",
                     listOf(),
@@ -887,10 +900,53 @@ object TVList {
                     false,
                     mustToken = false
                 ),
+            ),
+            "本地IPTV" to listOf(
+                // 这里可以添加一些示例RTP频道，或者留空让用户通过M3U8文件导入
+                // 使用用户提供的测试地址
+                TV(
+                    0,
+                    "家庭影院",
+                    "家庭影院",
+                    listOf("rtp://239.3.1.93:4120"),
+                    "本地IPTV",
+                    "",
+                    "",
+                    "",
+                    ProgramType.RTP,
+                    false,
+                    mustToken = false
+                ),
+                TV(
+                    0,
+                    "星影",
+                    "星影",
+                    listOf("rtp://239.3.1.94:4120"),
+                    "本地IPTV",
+                    "",
+                    "",
+                    "",
+                    ProgramType.RTP,
+                    false,
+                    mustToken = false
+                ),
+                TV(
+                    0,
+                    "光影",
+                    "光影",
+                    listOf("rtp://239.3.1.84:4120"),
+                    "本地IPTV",
+                    "",
+                    "",
+                    "",
+                    ProgramType.RTP,
+                    false,
+                    mustToken = false
+                ),
             )
         )
 
-        val array = arrayOf("央视", "地方")
+//        val array = arrayOf("央视", "地方", "本地IPTV")
 //        list = list.filterKeys { it in array }
 
         val listNew = mutableMapOf<String, List<TV>>()

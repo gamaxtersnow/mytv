@@ -2,6 +2,7 @@ package com.lizongying.mytv
 
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +15,7 @@ class ChannelFragment : Fragment() {
     private var _binding: ChannelBinding? = null
     private val binding get() = _binding!!
 
-    private val handler = Handler()
+    private val handler = Handler(Looper.getMainLooper())
     private val delay: Long = 3000
     private var channel = 0
     private var channelCount = 0

@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/performance_monitor_panel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_gravity="bottom"
+    android:layout_margin="8dp"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_background"
+    android:padding="12dp"
+    android:visibility="gone">
+
+    <!-- 性能监控标题和折叠按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="📊 性能监控"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"/>
+
+        <ImageView
+            android:id="@+id/expand_collapse_icon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@android:drawable/arrow_down_float"
+            android:tint="@color/white"/>
+
+        <Button
+            android:id="@+id/close_monitor_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="×"
+            android:textSize="18sp"
+            android:textColor="@color/white"
+            android:background="@android:color/transparent"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+    <!-- 性能指标概览 -->
+    <LinearLayout
+        android:id="@+id/performance_summary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="12dp">
+
+        <!-- 帧率 -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/fps_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="帧率"
+                android:textColor="@color/gray"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:id="@+id/fps_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/fps_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="fps"
+                android:textColor="@color/gray"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+        <!-- 缓冲 -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:background="@color/gray"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/buffer_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="缓冲"
+                android:textColor="@color/gray"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:id="@+id/buffer_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/buffer_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="%"
+                android:textColor="@color/gray"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+        <!-- 码率 -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:background="@color/gray"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/bitrate_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="码率"
+                android:textColor="@color/gray"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:id="@+id/bitrate_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/bitrate_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="kbps"
+                android:textColor="@color/gray"
+                android:textSize="10sp"/>
+        </LinearLayout>
+
+        <!-- 延迟 -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="24dp"
+            android:background="@color/gray"/>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="4dp">
+
+            <TextView
+                android:id="@+id/latency_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="延迟"
+                android:textColor="@color/gray"
+                android:textSize="12sp"/>
+
+            <TextView
+                android:id="@+id/latency_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/latency_unit"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="ms"
+                android:textColor="@color/gray"
+                android:textSize="10sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 详细性能图表区域（可折叠） -->
+    <LinearLayout
+        android:id="@+id/detailed_performance"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <!-- 图表标题 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="性能趋势"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- 帧率图表占位符 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:background="@color/dark_gray"
+            android:padding="8dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="帧率图表\n(实时更新)"
+                android:textColor="@color/gray"
+                android:textSize="12sp"
+                android:gravity="center"/>
+        </LinearLayout>
+
+        <!-- 缓冲图表占位符 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:background="@color/dark_gray"
+            android:padding="8dp"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:text="缓冲图表\n(实时更新)"
+                android:textColor="@color/gray"
+                android:textSize="12sp"
+                android:gravity="center"/>
+        </LinearLayout>
+
+        <!-- 性能告警 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="⚠️ 性能告警"
+                android:textColor="@color/yellow"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/performance_alerts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="无告警"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:lineSpacingExtra="2dp"/>
+        </LinearLayout>
+
+        <!-- 优化建议 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="💡 优化建议"
+                android:textColor="@color/light_blue"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp"/>
+
+            <TextView
+                android:id="@+id/optimization_suggestions"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="暂无建议"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:lineSpacingExtra="2dp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 控制按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/toggle_details_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="显示详情"
+            android:textSize="12sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:backgroundTint="@color/light_blue"/>
+
+        <Button
+            android:id="@+id/export_report_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="导出报告"
+            android:textSize="12sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:backgroundTint="@color/green"
+            android:layout_marginStart="8dp"/>
+
+        <Button
+            android:id="@+id/clear_alerts_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="清除告警"
+            android:textSize="12sp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:backgroundTint="@color/yellow"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+</LinearLayout>

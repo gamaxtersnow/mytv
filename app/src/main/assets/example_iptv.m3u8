@@ -1,0 +1,18 @@
+#EXTM3U
+# 本地IPTV示例配置文件 - 使用用户提供的测试地址
+# 格式说明：
+# #EXTINF:-1 tvg-id="频道ID" tvg-name="频道名称" tvg-logo="图标URL" group-title="分组名称",显示名称
+# 频道URL
+
+# 影院频道组 - 用户提供的测试地址
+#EXTINF:-1 tvg-id="family_cinema" tvg-name="家庭影院" tvg-logo="" group-title="影院",家庭影院
+rtp://239.3.1.93:4120
+
+#EXTINF:-1 tvg-id="star_cinema" tvg-name="星影" tvg-logo="" group-title="影院",星影
+rtp://239.3.1.94:4120
+
+#EXTINF:-1 tvg-id="light_cinema" tvg-name="光影" tvg-logo="" group-title="影院",光影
+rtp://239.3.1.84:4120
+
+#EXTINF:-1 tvg-id="selected_cinema" tvg-name="精选" tvg-logo="" group-title="影院",精选
+rtp://239.3.1.85:4120

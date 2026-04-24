@@ -62,13 +62,13 @@ class UpdateManager(
 
     private fun updateUI(text: String) {
         val dialog = ConfirmationFragment(this@UpdateManager, text)
-        dialog.show(settingFragment.fragmentManager, TAG)
+        dialog.show(settingFragment.parentFragmentManager, TAG)
     }
 
     private fun haveStoragePermission(): Boolean {
         if (Build.VERSION.SDK_INT >= 23) {
             if (checkSelfPermission(context, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                === PermissionChecker.PERMISSION_GRANTED
+                == PermissionChecker.PERMISSION_GRANTED
             ) {
                 Log.e("Permission error", "You have permission")
                 return true
@@ -166,7 +166,7 @@ class UpdateManager(
                     }
                 }
 
-//                handler.postDelayed(this, intervalMillis)
+                handler.postDelayed(this, intervalMillis)
             }
         })
     }

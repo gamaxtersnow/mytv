@@ -13,6 +13,8 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
@@ -39,7 +41,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
     private lateinit var gestureDetector: GestureDetector
 
-    private val handler = Handler()
+    private val handler = Handler(Looper.getMainLooper())
     private val delayHideMain: Long = 10000
     private val delayHideSetting: Long = 10000
 
@@ -62,8 +64,19 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         Request.setRequestListener(this)
 
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-        window.decorView.systemUiVisibility = SYSTEM_UI_FLAG_HIDE_NAVIGATION
+
+        // 全屏显示和隐藏导航栏，适配不同API版本
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.apply {
+                hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+        }
 
         if (savedInstanceState == null) {
             supportFragmentManager.beginTransaction()

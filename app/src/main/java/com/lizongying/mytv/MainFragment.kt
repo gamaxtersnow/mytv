@@ -69,6 +69,7 @@ class MainFragment : BrowseSupportFragment() {
         super.onStart()
     }
 
+    @Suppress("DEPRECATION")
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 
@@ -310,6 +311,11 @@ class MainFragment : BrowseSupportFragment() {
 
             ProgramType.F -> {
                 Request.fetchFEPG(tvViewModel)
+            }
+            
+            ProgramType.RTP -> {
+                // RTP频道不需要EPG数据，或者可以留空
+                // 可以在这里添加RTP特定的EPG逻辑
             }
         }
     }

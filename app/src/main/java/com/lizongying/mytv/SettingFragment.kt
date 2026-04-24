@@ -1,9 +1,12 @@
 package com.lizongying.mytv
 
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.fragment.app.DialogFragment
 import com.lizongying.mytv.databinding.SettingBinding
@@ -19,8 +22,18 @@ class SettingFragment : DialogFragment() {
     override fun onStart() {
         super.onStart()
         dialog?.window?.apply {
-            addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
-            decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            // 全屏显示和隐藏导航栏，适配不同API版本
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                insetsController?.apply {
+                    hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                    systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                @Suppress("DEPRECATION")
+                decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            }
         }
     }
 
@@ -81,6 +94,14 @@ class SettingFragment : DialogFragment() {
 
         binding.exit.setOnClickListener{
             requireActivity().finishAffinity()
+        }
+
+        // VLC测试按钮点击事件
+        binding.vlcTestButton.setOnClickListener {
+            // 启动VLC测试Activity
+            val intent = android.content.Intent(requireContext(), VLCTestActivity::class.java)
+            startActivity(intent)
+            dismiss() // 关闭设置对话框
         }
 
         return binding.root

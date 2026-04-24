@@ -436,7 +436,7 @@ object Request {
             override fun onResponse(call: Call<FAuth>, response: Response<FAuth>) {
                 if (response.isSuccessful && response.body()?.data?.live_url != null) {
                     val url = response.body()?.data?.live_url!!
-//                    Log.d(TAG, "$title url $url")
+                    Log.d(TAG, "$title url $url")
                     tvModel.addVideoUrl(url)
                     tvModel.allReady()
                     tvModel.tokenFHRetryTimes = 0
@@ -493,7 +493,6 @@ object Request {
                         val o = response.body()?.o
                         val t = response.body()?.t
                         val f = response.body()?.f
-                        val e = response.body()?.e
                         val c = response.body()?.c
                         if (!o.isNullOrEmpty()) {
                             openid = o

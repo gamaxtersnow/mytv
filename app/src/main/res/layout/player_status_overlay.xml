@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/player_status_overlay"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="top|end"
+    android:layout_margin="16dp"
+    android:orientation="vertical"
+    android:background="@drawable/rounded_background"
+    android:padding="12dp"
+    android:visibility="gone">
+
+    <!-- 播放器类型和状态 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/player_type_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="播放器:"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:layout_marginEnd="4dp"/>
+
+        <TextView
+            android:id="@+id/player_type_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="未知"
+            android:textColor="@color/light_blue"
+            android:textSize="14sp"
+            android:textStyle="bold"/>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="12dp"
+            android:background="@color/gray"/>
+
+        <TextView
+            android:id="@+id/player_state_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="状态:"
+            android:textColor="@color/white"
+            android:textSize="14sp"
+            android:layout_marginEnd="4dp"/>
+
+        <TextView
+            android:id="@+id/player_state_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="未知"
+            android:textColor="@color/green"
+            android:textSize="14sp"
+            android:textStyle="bold"/>
+    </LinearLayout>
+
+    <!-- 性能监控信息 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:id="@+id/performance_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="性能监控"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/fps_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="帧率:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/fps_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 fps"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="12dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@color/gray"/>
+
+            <TextView
+                android:id="@+id/buffer_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="缓冲:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/buffer_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0%"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/bitrate_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="码率:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/bitrate_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 kbps"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="12dp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@color/gray"/>
+
+            <TextView
+                android:id="@+id/latency_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="延迟:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/latency_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 ms"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 网络质量指示器 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/network_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="网络质量:"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:layout_marginEnd="8dp"/>
+
+        <ProgressBar
+            android:id="@+id/network_quality_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="80dp"
+            android:layout_height="8dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="@color/green"/>
+
+        <TextView
+            android:id="@+id/network_quality_value"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0%"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+    <!-- 组播状态信息 -->
+    <LinearLayout
+        android:id="@+id/multicast_status_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/multicast_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="组播状态"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/multicast_support_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="组播支持:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/multicast_support_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="未知"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/protocol_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="协议:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/protocol_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="未知"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/multicast_address_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="组播地址:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/multicast_address_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="未知"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="4dp">
+
+            <TextView
+                android:id="@+id/performance_mode_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="性能模式:"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:layout_marginEnd="4dp"/>
+
+            <TextView
+                android:id="@+id/performance_mode_value"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="平衡模式"
+                android:textColor="@color/white"
+                android:textSize="12sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 错误和警告信息 -->
+    <TextView
+        android:id="@+id/error_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="@color/red"
+        android:textSize="12sp"
+        android:visibility="gone"
+        android:layout_marginTop="8dp"/>
+
+    <!-- 控制按钮 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp">
+
+        <Button
+            android:id="@+id/toggle_monitoring_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="隐藏监控"
+            android:textSize="12sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"/>
+
+        <Button
+            android:id="@+id/switch_player_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="切换播放器"
+            android:textSize="12sp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
+            android:layout_marginStart="8dp"/>
+    </LinearLayout>
+
+</LinearLayout>

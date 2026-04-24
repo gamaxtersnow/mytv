@@ -37,7 +37,11 @@ object Utils {
         } catch (e: Exception) {
             println("Failed to retrieve timestamp from server: ${e.message}")
         }
-        between = System.currentTimeMillis() - currentTimeMillis
+        between = if (currentTimeMillis > 0) {
+            System.currentTimeMillis() - currentTimeMillis
+        } else {
+            0
+        }
     }
 
     /**

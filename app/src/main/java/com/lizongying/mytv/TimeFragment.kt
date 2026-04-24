@@ -2,6 +2,7 @@ package com.lizongying.mytv
 
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +15,7 @@ class TimeFragment : Fragment() {
     private var _binding: TimeBinding? = null
     private val binding get() = _binding!!
 
-    private val handler = Handler()
+    private val handler = Handler(Looper.getMainLooper())
     private val delay: Long = 1000
 
     override fun onCreateView(

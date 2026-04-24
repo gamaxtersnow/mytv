@@ -12,8 +12,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.converter.protobuf.ProtoConverterFactory
 import java.net.InetSocketAddress
 import java.net.Proxy
+import java.security.KeyStore
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
+import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
 
@@ -106,12 +108,16 @@ class ApiClient {
             try {
                 val sc = SSLContext.getInstance("TLSv1.2")
 
+                // 使用默认的信任管理器
+                val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+                trustManagerFactory.init(null as KeyStore?)
+                val trustManagers = trustManagerFactory.trustManagers
+                val trustManager = trustManagers[0] as X509TrustManager
+
                 sc.init(null, null, null)
 
-                // a more robust version is to pass a custom X509TrustManager
-                // as the second parameter and make checkServerTrusted to accept your server.
-                // Credits: https://github.com/square/okhttp/issues/2372#issuecomment-1774955225
-                client.sslSocketFactory(Tls12SocketFactory(sc.socketFactory))
+                // 使用新的sslSocketFactory重载方法，同时传递信任管理器
+                client.sslSocketFactory(Tls12SocketFactory(sc.socketFactory), trustManager)
 
                 val cs = ConnectionSpec.Builder(ConnectionSpec.MODERN_TLS)
                     .tlsVersions(TlsVersion.TLS_1_2)
@@ -156,12 +162,9 @@ class ApiClient {
             val sslContext = SSLContext.getInstance("SSL")
             sslContext.init(null, trustAllCerts, java.security.SecureRandom())
 
-            val proxy = Proxy(Proxy.Type.HTTP, InetSocketAddress("10.0.2.2", 8888))
-
             val builder = OkHttpClient.Builder()
                 .sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
                 .hostnameVerifier { _, _ -> true }
-//                .proxy(proxy)
                 .dns(DnsCache())
 
             return enableTls12OnPreLollipop(builder).build()
