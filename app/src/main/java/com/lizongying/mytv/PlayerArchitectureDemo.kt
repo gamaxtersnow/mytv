@@ -166,9 +166,9 @@ class PlayerArchitectureDemo : AppCompatActivity() {
         logMessage("\n=== 混合播放场景演示 ===")
         
         val scenarios = listOf(
-            Scenario("IPTV电视直播", "rtp://239.1.1.1:5000", "使用VLC播放RTP组播流"),
+            Scenario("IPTV电视直播", "rtp://239.1.1.1:5000", "使用GSYVideoPlayer播放RTP组播流"),
             Scenario("在线视频点播", "http://example.com/video.mp4", "使用ExoPlayer播放HTTP流"),
-            Scenario("监控摄像头", "rtsp://192.168.1.100:554/stream", "使用VLC播放RTSP流"),
+            Scenario("监控摄像头", "rtsp://192.168.1.100:554/stream", "使用GSYVideoPlayer播放RTSP流"),
             Scenario("网络直播", "http://example.com/live.m3u8", "使用ExoPlayer播放HLS流")
         )
         

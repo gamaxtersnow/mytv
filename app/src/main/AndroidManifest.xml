@@ -42,20 +42,6 @@
             </intent-filter>
         </activity>
 
-        <!-- VLC测试Activity，用于验证RTP播放功能 -->
-        <activity
-            android:name=".VLCTestActivity"
-            android:exported="${isDebug}"
-            android:label="VLC RTP测试"
-            android:screenOrientation="landscape" />
-
-        <!-- RTP测试Activity，用于Meta20实体机性能验证 -->
-        <activity
-            android:name=".RTPTestActivity"
-            android:exported="${isDebug}"
-            android:label="RTP性能测试"
-            android:screenOrientation="landscape" />
-
         <receiver
             android:name=".BootReceiver"
             android:exported="true"

@@ -96,13 +96,6 @@ class SettingFragment : DialogFragment() {
             requireActivity().finishAffinity()
         }
 
-        // VLC测试按钮点击事件
-        binding.vlcTestButton.setOnClickListener {
-            // 启动VLC测试Activity
-            val intent = android.content.Intent(requireContext(), VLCTestActivity::class.java)
-            startActivity(intent)
-            dismiss() // 关闭设置对话框
-        }
 
         return binding.root
     }

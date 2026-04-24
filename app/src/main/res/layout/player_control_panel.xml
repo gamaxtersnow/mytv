@@ -53,10 +53,10 @@
                 android:buttonTint="@color/light_blue"/>
 
             <RadioButton
-                android:id="@+id/radio_vlc_player"
+                android:id="@+id/radio_gsy_player"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="VLC播放器"
+                android:text="GSY播放器"
                 android:textColor="@color/white"
                 android:buttonTint="@color/light_blue"
                 android:layout_marginStart="16dp"/>

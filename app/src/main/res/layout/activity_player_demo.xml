@@ -135,7 +135,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="• 统一播放器接口 (UnifiedVideoPlayer)\n• 智能播放器工厂 (PlayerFactory)\n• 自动协议识别 (RTP/RTSP/HTTP/HLS)\n• VLC播放器包装 (RTP/UDP支持)\n• ExoPlayer包装 (HTTP/HLS支持)\n• 向后兼容现有功能"
+            android:text="• 统一播放器接口 (UnifiedVideoPlayer)\n• 智能播放器工厂 (PlayerFactory)\n• 自动协议识别 (RTP/RTSP/HTTP/HLS)\n• GSYVideoPlayer包装 (RTP/UDP支持)\n• ExoPlayer包装 (HTTP/HLS支持)\n• 向后兼容现有功能"
             android:textSize="14sp"
             android:lineSpacingExtra="4dp"
             android:layout_marginBottom="16dp"

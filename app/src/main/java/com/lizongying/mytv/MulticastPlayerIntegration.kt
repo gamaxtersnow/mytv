@@ -78,11 +78,11 @@ class MulticastPlayerIntegration(context: Context) {
         playbackStateListener = listener
         currentMulticastUrl = url
 
-        // 选择合适的播放器：组播流固定用VLC
+        // 选择合适的播放器：组播流使用GSYVideoPlayer
         val playerType = when {
             url.startsWith("rtsp://") || url.startsWith("rtp://") || url.startsWith("udp://") -> {
-                Log.d(TAG, "组播流使用VLC播放器")
-                UnifiedVideoPlayer.PlayerType.VLC_PLAYER
+                Log.d(TAG, "组播流使用GSYVideoPlayer")
+                UnifiedVideoPlayer.PlayerType.GSY_PLAYER
             }
             else -> {
                 Log.d(TAG, "使用ExoPlayer播放器")
@@ -185,9 +185,6 @@ class MulticastPlayerIntegration(context: Context) {
             UnifiedVideoPlayer.PlayerType.EXO_PLAYER -> {
                 ExoPlayerWrapper()
             }
-            UnifiedVideoPlayer.PlayerType.VLC_PLAYER -> {
-                VLCPlayerWrapper()
-            }
             UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> {
                 GsyPlayerWrapper()
             }
@@ -284,24 +281,8 @@ class MulticastPlayerIntegration(context: Context) {
      * 根据缓冲进度调整性能模式
      */
     private fun adjustPerformanceModeBasedOnBuffer(bufferPercent: Int) {
-        if (currentPlayer is VLCPlayerWrapper) {
-            val vlcPlayer = currentPlayer as? VLCPlayerWrapper
-
-            when {
-                bufferPercent < 10 -> {
-                    Log.d(TAG, "缓冲过低，切换到低延迟模式")
-                    vlcPlayer?.setPerformanceMode(PerformanceConfig.PerformanceMode.LOW_LATENCY)
-                }
-                bufferPercent > 80 -> {
-                    Log.d(TAG, "缓冲充足，切换到高质量模式")
-                    vlcPlayer?.setPerformanceMode(PerformanceConfig.PerformanceMode.HIGH_QUALITY)
-                }
-                else -> {
-                    Log.d(TAG, "缓冲适中，使用平衡模式")
-                    vlcPlayer?.setPerformanceMode(PerformanceConfig.PerformanceMode.BALANCED)
-                }
-            }
-        }
+        Log.d(TAG, "缓冲进度: $bufferPercent%，调整性能模式")
+        // 性能模式调整逻辑（当前通过日志记录，如需可通过播放器接口扩展）
     }
 
     /**

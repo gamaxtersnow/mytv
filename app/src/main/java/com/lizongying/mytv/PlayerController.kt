@@ -120,7 +120,7 @@ class PlayerController(private val context: Context) {
             }
         })
 
-        // 【重要】必须在prepare之前设置视频输出，特别是对于VLC播放器
+        // 【重要】必须在prepare之前设置视频输出
         if (playerType == UnifiedVideoPlayer.PlayerType.EXO_PLAYER && playerView != null) {
             // ExoPlayer使用PlayerView
             player.setPlayerView(playerView)
@@ -128,9 +128,9 @@ class PlayerController(private val context: Context) {
         } else {
             val surfaceHolder = isSurfaceHolder
             if (surfaceHolder != null && surfaceHolder.surface != null && surfaceHolder.surface.isValid) {
-                // VLC或其他播放器使用SurfaceHolder，确保Surface有效
+                // GSYVideoPlayer使用SurfaceHolder，确保Surface有效
                 player.setVideoSurface(surfaceHolder)
-                Log.d(TAG, "为VLC播放器设置有效SurfaceHolder，尺寸: ${surfaceHolder.surfaceFrame.width()}x${surfaceHolder.surfaceFrame.height()}")
+                Log.d(TAG, "为GSYVideoPlayer设置有效SurfaceHolder，尺寸: ${surfaceHolder.surfaceFrame.width()}x${surfaceHolder.surfaceFrame.height()}")
             } else {
                 Log.w(TAG, "没有可用的视频输出Surface，播放可能失败")
             }
@@ -156,7 +156,7 @@ class PlayerController(private val context: Context) {
     private fun getPlayerOptions(url: String): Map<String, Any> {
         val options = mutableMapOf<String, Any>()
 
-        // 根据协议类型添加特定选项，只使用VLC支持的选项
+        // 根据协议类型添加特定选项
         when {
             PlayerFactory.isRTPStream(url) -> {
                 options["network-caching"] = 3000
@@ -253,11 +253,6 @@ class PlayerController(private val context: Context) {
             releasePlayer()
 
             val player = when (forceType) {
-                UnifiedVideoPlayer.PlayerType.VLC_PLAYER -> {
-                    val vlcPlayer = VLCPlayerWrapper()
-                    vlcPlayer.initialize(appContext)
-                    vlcPlayer
-                }
                 UnifiedVideoPlayer.PlayerType.EXO_PLAYER -> {
                     val exoPlayer = ExoPlayerWrapper()
                     exoPlayer.initialize(appContext)

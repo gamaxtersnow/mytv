@@ -54,7 +54,7 @@ object NetworkDetector {
     }
 
     /**
-     * 获取当前活动的网络接口名称，用于VLC绑定
+     * 获取当前活动的网络接口名称，用于播放器网络绑定
      */
     fun getActiveNetworkInterfaceName(context: Context): String? {
         return try {

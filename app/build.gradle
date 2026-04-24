@@ -133,9 +133,6 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2"
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0-RC")
     
-    // VLC Android SDK for RTP/RTSP playback (保留作为备选)
-    implementation 'org.videolan.android:libvlc-all:3.6.0'
-
     // GSYVideoPlayer - 基于ijkplayer持续维护的播放器，优化UDP/RTP组播播放
     // 使用v8.5.0-release-jitpack，该版本在JitPack上验证可用
     // java: Java层API（so库使用本地编译版本，支持MP2解码器）

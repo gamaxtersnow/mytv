@@ -155,7 +155,7 @@ object RTPProtocolDetector {
             isMulticast = isMulticast,
             isCommonPort = isCommonPort,
             recommendedPlayer = when {
-                isRTP || isRTSP -> RecommendedPlayer.VLC
+                isRTP || isRTSP -> RecommendedPlayer.GSY_PLAYER
                 else -> RecommendedPlayer.EXO_PLAYER
             }
         )
@@ -199,9 +199,9 @@ object RTPProtocolDetector {
         }
         
         when (info.recommendedPlayer) {
-            RecommendedPlayer.VLC -> {
-                suggestions.add("推荐播放器: VLC (对RTP/RTSP支持更好)")
-                suggestions.add("VLC优化: 启用硬件解码，增加网络缓存")
+            RecommendedPlayer.GSY_PLAYER -> {
+                suggestions.add("推荐播放器: GSYVideoPlayer (对RTP/RTSP支持更好)")
+                suggestions.add("GSY优化: 启用硬件解码，增加网络缓存")
             }
             RecommendedPlayer.EXO_PLAYER -> {
                 suggestions.add("推荐播放器: ExoPlayer")
@@ -230,7 +230,7 @@ object RTPProtocolDetector {
      * 推荐播放器枚举
      */
     enum class RecommendedPlayer {
-        VLC, EXO_PLAYER, AUTO
+        GSY_PLAYER, EXO_PLAYER, AUTO
     }
     
     /**

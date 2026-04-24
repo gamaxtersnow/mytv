@@ -5,7 +5,7 @@ import androidx.media3.ui.PlayerView
 
 /**
  * 统一视频播放器接口
- * 抽象化不同播放器（ExoPlayer、VLC）的核心功能，提供一致的API
+ * 抽象化不同播放器（ExoPlayer、ijkplayer）的核心功能，提供一致的API
  */
 interface UnifiedVideoPlayer {
     
@@ -14,7 +14,6 @@ interface UnifiedVideoPlayer {
      */
     enum class PlayerType {
         EXO_PLAYER,  // ExoPlayer播放器
-        VLC_PLAYER,  // VLC播放器
         GSY_PLAYER   // GSYVideoPlayer（基于ijkplayer持续维护，优化UDP/RTP组播）
     }
     

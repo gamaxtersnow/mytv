@@ -86,13 +86,13 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
         playerController.setPlayerTypeChangeListener { playerType ->
             activity?.runOnUiThread {
                 when (playerType) {
-                    UnifiedVideoPlayer.PlayerType.VLC_PLAYER, UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> {
-                        // VLC/GSYVideoPlayer使用SurfaceView
+                    UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> {
+                        // GSYVideoPlayer使用SurfaceView
                         _binding?.surfaceView?.visibility = View.VISIBLE
                         _binding?.playerView?.visibility = View.INVISIBLE
                         // 确保SurfaceView在最前面
                         _binding?.surfaceView?.bringToFront()
-                        Log.d(TAG, "切换到${if (playerType == UnifiedVideoPlayer.PlayerType.VLC_PLAYER) "VLC" else "GSYVideoPlayer"}播放器，显示SurfaceView")
+                        Log.d(TAG, "切换到GSYVideoPlayer播放器，显示SurfaceView")
                     }
                     UnifiedVideoPlayer.PlayerType.EXO_PLAYER -> {
                         // ExoPlayer使用PlayerView

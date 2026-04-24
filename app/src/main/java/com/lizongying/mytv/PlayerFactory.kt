@@ -63,7 +63,6 @@ object PlayerFactory {
         Log.i(TAG, "为URL创建播放器: $url, 类型: $playerType")
         
         return when (playerType) {
-            UnifiedVideoPlayer.PlayerType.VLC_PLAYER -> createVLCPlayer(context)
             UnifiedVideoPlayer.PlayerType.EXO_PLAYER -> createExoPlayer(context)
             UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> createIjkPlayer(context)
         }
@@ -115,16 +114,7 @@ object PlayerFactory {
         return player
     }
 
-    /**
-     * 创建VLC播放器实例
-     */
-    private fun createVLCPlayer(context: Context): VLCPlayerWrapper {
-        Log.d(TAG, "创建VLC播放器实例")
-        val player = VLCPlayerWrapper()
-        player.initialize(context)
-        return player
-    }
-    
+
     /**
      * 创建ExoPlayer实例
      */

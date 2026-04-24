@@ -103,7 +103,7 @@ class PlayerUiController(
         }
 
         switchPlayerBtn?.setOnClickListener {
-            listener.onSwitchPlayerRequested(UnifiedVideoPlayer.PlayerType.VLC_PLAYER)
+            listener.onSwitchPlayerRequested(UnifiedVideoPlayer.PlayerType.GSY_PLAYER)
         }
     }
 
@@ -169,8 +169,8 @@ class PlayerUiController(
                 R.id.radio_exo_player -> {
                     listener.onSwitchPlayerRequested(UnifiedVideoPlayer.PlayerType.EXO_PLAYER)
                 }
-                R.id.radio_vlc_player -> {
-                    listener.onSwitchPlayerRequested(UnifiedVideoPlayer.PlayerType.VLC_PLAYER)
+                R.id.radio_gsy_player -> {
+                    listener.onSwitchPlayerRequested(UnifiedVideoPlayer.PlayerType.GSY_PLAYER)
                 }
             }
         }
@@ -275,7 +275,7 @@ class PlayerUiController(
 
         // 播放器类型
         playerTypeValue?.text = when (playerType) {
-            UnifiedVideoPlayer.PlayerType.VLC_PLAYER -> "VLC播放器"
+            UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> "GSYVideoPlayer"
             UnifiedVideoPlayer.PlayerType.EXO_PLAYER -> "ExoPlayer"
             else -> "未知"
         }
@@ -520,8 +520,8 @@ class PlayerUiController(
      */
     fun updatePlayerTypeSelection(type: UnifiedVideoPlayer.PlayerType) {
         when (type) {
-            UnifiedVideoPlayer.PlayerType.VLC_PLAYER, UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> {
-                playerTypeGroup?.check(R.id.radio_vlc_player)
+            UnifiedVideoPlayer.PlayerType.GSY_PLAYER -> {
+                playerTypeGroup?.check(R.id.radio_gsy_player)
             }
             UnifiedVideoPlayer.PlayerType.EXO_PLAYER -> {
                 playerTypeGroup?.check(R.id.radio_exo_player)
