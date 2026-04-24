@@ -53,6 +53,3 @@
 
 本项目使用的部分代码、图片、文字等资源来源于网络，如有侵权，请联系删除。
 
-## 赞赏
-
-![image](./screenshots/appreciate.jpeg)
