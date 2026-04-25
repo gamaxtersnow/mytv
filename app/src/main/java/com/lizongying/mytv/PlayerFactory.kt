@@ -13,14 +13,14 @@ object PlayerFactory {
     
     // 协议到播放器类型的映射
     private val PROTOCOL_PLAYER_MAP = mapOf(
-        // RTP/UDP协议 - 使用GSYVideoPlayer（基于ijkplayer，优化组播）
-        "rtp://" to UnifiedVideoPlayer.PlayerType.GSY_PLAYER,
-        "udp://" to UnifiedVideoPlayer.PlayerType.GSY_PLAYER,
-        "rtp:" to UnifiedVideoPlayer.PlayerType.GSY_PLAYER,
-        "udp:" to UnifiedVideoPlayer.PlayerType.GSY_PLAYER,
+        // RTP/UDP协议 - 使用ExoPlayer + UdpDataSource（利用ExoPlayer的缓冲管理）
+        "rtp://" to UnifiedVideoPlayer.PlayerType.EXO_PLAYER,
+        "udp://" to UnifiedVideoPlayer.PlayerType.EXO_PLAYER,
+        "rtp:" to UnifiedVideoPlayer.PlayerType.EXO_PLAYER,
+        "udp:" to UnifiedVideoPlayer.PlayerType.EXO_PLAYER,
 
-        // RTSP协议 - 使用GSYVideoPlayer
-        "rtsp://" to UnifiedVideoPlayer.PlayerType.GSY_PLAYER,
+        // RTSP协议 - 使用ExoPlayer
+        "rtsp://" to UnifiedVideoPlayer.PlayerType.EXO_PLAYER,
 
         // HTTP/HTTPS协议 - 使用ExoPlayer
         "http://" to UnifiedVideoPlayer.PlayerType.EXO_PLAYER,
@@ -130,8 +130,14 @@ object PlayerFactory {
      */
     fun isRTPStream(url: String): Boolean {
         return url.startsWith("rtp://", ignoreCase = true) ||
-               url.startsWith("udp://", ignoreCase = true) ||
-               url.startsWith("rtp:", ignoreCase = true) ||
+               url.startsWith("rtp:", ignoreCase = true)
+    }
+
+    /**
+     * 检查URL是否是UDP流
+     */
+    fun isUDPStream(url: String): Boolean {
+        return url.startsWith("udp://", ignoreCase = true) ||
                url.startsWith("udp:", ignoreCase = true)
     }
     

@@ -1,8 +1,12 @@
 package com.lizongying.mytv
 
 import android.content.Context
+import android.hardware.display.DisplayManager
+import android.os.Build
 import android.util.Log
+import android.view.Display
 import android.view.SurfaceHolder
+import android.view.WindowManager
 import androidx.media3.ui.PlayerView
 import tv.danmaku.ijk.media.player.IMediaPlayer
 import tv.danmaku.ijk.media.player.IjkMediaPlayer
@@ -53,15 +57,14 @@ class GsyPlayerWrapper : UnifiedVideoPlayer {
             // 开启详细日志以便诊断
             IjkMediaPlayer.native_setLogLevel(IjkMediaPlayer.IJK_LOG_VERBOSE)
 
-            // 启用硬解（解决4K软解卡顿问题）
+            // 启用硬解（4K必须硬解，软解会压垮CPU+GPU导致fence超时卡顿）
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1L)
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", 1L)
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-avc", 1L)
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", 1L)
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-mpeg2", 1L)
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-mpeg4", 1L)
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-avc", 1L)
+            // 处理分辨率变化，避免花屏/卡顿
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", 1L)
+            // OpenGL ES2 直接渲染（绕过SurfaceFlinger合成，减少4K GPU开销）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "overlay-format", "fcc-_es2")
 
             // 允许udp协议（rtp://会转为udp://@）
             setOption(
@@ -70,43 +73,57 @@ class GsyPlayerWrapper : UnifiedVideoPlayer {
                 "file,http,https,udp,rtp,tcp,tls,rtmp,crypto"
             )
 
-            // ========== GSYVideoPlayer官方直播/RTSP推荐配置 ==========
-            // 不额外优化
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "fast", 1L)
-            // 分析码流大小（增大以便正确探测音频流，4K HEVC需要更大）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "probesize", 5000000L)
-            // 刷新包
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "flush_packets", 1L)
-            // UDP接收缓冲区增大（减少组播丢包）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "buffer_size", 2097152L)
-            // 关闭播放器缓冲（必须关闭，否则播放一段时间后会卡住）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 0L)
-            // 丢帧，太卡时尝试丢帧保持同步（增大丢帧阈值）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 5L)
+            // ========== 4K/高码率优化配置 ==========
+            // 分析码流大小（4K HEVC需要更大探测值以正确识别流参数）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "probesize", 20000000L)
+            // UDP接收缓冲区（增大减少组播丢包，4K流需要更大）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "buffer_size", 8388608L)
+            // UDP FIFO缓冲区（额外缓冲层应对网络抖动）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "fifo_size", 8388608L)
+            // MPEG-TS 流增强容错（resync=丢失同步后重新同步，discardcorrupt=丢弃损坏包）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "mpegts_flags", "+resync")
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "fflags", "+discardcorrupt")
+            // 关闭 flush_packets（避免NAL单元被提前分割，导致海思解码器收到不完整的slice）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "flush_packets", 0L)
+            // ========== 直播/4K 核心优化 ==========
+            // 开启播放器缓冲（让播放器管理帧释放节奏，均匀输出到屏幕）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 1L)
+            // 限制输入缓存（防止缓冲过大导致延迟累积）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 0L)
+            // 轻微丢帧（只在严重延迟时丢帧，平时保持流畅）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 1L)
             // 自动开始播放
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 1L)
-            // 跳过循环过滤器（默认值48）
+            // 跳过循环过滤器（48=跳过非参考帧，最大化减轻4K解码压力）
             setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48L)
-            // 最大缓存数（限制为8MB防止内存过大）
+            // 最大缓存数（8MB，更大缓冲平滑网络抖动）
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 8388608L)
-            // 默认最小帧数（增加预缓冲帧数减少卡顿）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", 5L)
-            // 最大缓存时长（毫秒）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max_cached_duration", 100L)
-            // 是否限制输入缓存数（1=不限制，适合实时流）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 1L)
-            // 禁用音频视频同步启动，避免音频被视频阻塞
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", 0L)
-            // 禁用精确seek，避免音频初始化延迟
+            // 最小帧数（16帧启动缓冲，积累更多帧后均匀输出）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", 16L)
+            // 视频帧队列大小（增大到12，让渲染更稳定）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "video-pictq-size", 12L)
+            // 音频帧队列大小
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "audio-pictq-size", 4L)
+            // 使用OpenSL ES音频输出（更低的音频延迟，更稳定的A/V同步）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "opensles", 1L)
+            // 让音频时钟主导同步（通常比视频同步更稳定，减少画面抖动）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync", "audio")
+            // ========== 帧率适配（类似Kodi VideoSync）==========
+            // 启用帧率适配：将帧显示时长对齐到显示刷新周期的整数倍
+            // 减少25fps/50fps视频在60Hz屏幕上的judder（画面抖动）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "fps-adaptation", 1L)
+            // 自动检测并设置显示刷新率
+            val refreshRate = getDisplayRefreshRate()
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "refresh-rate", refreshRate.toString())
+            Log.d(TAG, "自动检测到显示刷新率: ${refreshRate}Hz")
+            // 最大缓存时长（毫秒）——让播放器自由管理，不限制
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max_cached_duration", 3000L)
+            // 禁用精确seek
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "accurate-seek", 0L)
-            // 禁用 nobuffer，允许 FFmpeg 内部缓冲以提高抗丢包能力
-            // setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "fflags", "nobuffer")
-            // TCP传输数据（UDP组播不需要，但保留以防万一）
-            // setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "rtsp_transport", "tcp")
-            // 分析码流时长（增大以便正确探测音频流，4K HEVC需要更长时间）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzedmaxduration", 3000000L)
+            // 分析码流时长（4K HEVC需要更长时间探测）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzedmaxduration", 5000000L)
             // 最大分析时长（微秒）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", 3000000L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", 5000000L)
 
             // 监听器
             setupListeners(this)
@@ -330,6 +347,25 @@ class GsyPlayerWrapper : UnifiedVideoPlayer {
 
     override fun getPlayerState(): UnifiedVideoPlayer.PlayerState {
         return currentState
+    }
+
+    /**
+     * 自动检测设备显示刷新率（Hz）
+     * 通过 DisplayManager 获取当前显示模式刷新率，适配不同设备
+     */
+    private fun getDisplayRefreshRate(): Float {
+        val ctx = context ?: return 60.0f
+        return try {
+            val displayManager = ctx.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+            val display = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)
+
+            val refreshRate = display?.refreshRate ?: 60.0f
+            // 过滤掉不合理的值，保底60Hz
+            if (refreshRate <= 0 || refreshRate > 240) 60.0f else refreshRate
+        } catch (e: Exception) {
+            Log.w(TAG, "获取显示刷新率失败，使用默认值60Hz", e)
+            60.0f
+        }
     }
 
     override fun setPlaybackSpeed(speed: Float) {

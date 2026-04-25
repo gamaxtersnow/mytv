@@ -3,11 +3,19 @@ package com.lizongying.mytv
 import android.content.Context
 import android.util.Log
 import android.view.SurfaceHolder
+import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.ui.PlayerView
 
 /**
@@ -33,8 +41,33 @@ class ExoPlayerWrapper : UnifiedVideoPlayer {
     override fun initialize(context: Context): Boolean {
         this.context = context
         return try {
+            // Configure renderers factory with FFmpeg extension for MP2/AC3/EAC3 audio decoding
+            val renderersFactory = DefaultRenderersFactory(context)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+
             // 使用配置的builder或默认创建ExoPlayer
-            player = exoPlayerConfig?.build() ?: ExoPlayer.Builder(context).build()
+            val builder = exoPlayerConfig ?: ExoPlayer.Builder(context, renderersFactory)
+            if (exoPlayerConfig != null) {
+                builder.setRenderersFactory(renderersFactory)
+            }
+
+            // Configure larger buffer for multicast streams to allow TsExtractor
+            // enough data to parse PAT/PMT tables and detect audio tracks
+            val loadControl = DefaultLoadControl.Builder()
+                .setBufferDurationsMs(
+                    /* minBufferMs = */ 5000,
+                    /* maxBufferMs = */ 30000,
+                    /* bufferForPlaybackMs = */ 2000,
+                    /* bufferForPlaybackAfterRebufferMs = */ 3000
+                )
+                .setTargetBufferBytes(C.DEFAULT_BUFFER_SEGMENT_SIZE * 32)
+                .build()
+            builder.setLoadControl(loadControl)
+
+            player = builder.build()
+
+            // Add EventLogger to track renderer selection and track info
+            player?.addAnalyticsListener(EventLogger())
 
             // 设置播放器事件监听器
             player?.addListener(object : Player.Listener {
@@ -95,16 +128,32 @@ class ExoPlayerWrapper : UnifiedVideoPlayer {
 
         try {
             Log.d(TAG, "准备播放: $url")
-            val mediaItem = MediaItem.fromUri(url)
-            player?.setMediaItem(mediaItem)
-            player?.prepare()
 
-            // 如果是RTP流，应用优化
-            if (PlayerFactory.isRTPStream(url)) {
-                RTPPlayerHelper.applyRTPOptimizations(player!!)
-                Log.d(TAG, "应用RTP流优化配置")
+            val mediaItem = if (PlayerFactory.isRTPStream(url) || PlayerFactory.isUDPStream(url)) {
+                // For RTP/UDP streams, specify MPEG-TS mime type so ExoPlayer uses TsExtractor
+                MediaItem.Builder()
+                    .setUri(url)
+                    .setMimeType("video/mp2t")
+                    .build()
+            } else {
+                MediaItem.fromUri(url)
             }
 
+            // Use UdpDataSource for RTP/UDP streams, default otherwise
+            if (PlayerFactory.isRTPStream(url) || PlayerFactory.isUDPStream(url)) {
+                @OptIn(UnstableApi::class)
+                val dataSourceFactory = DataSource.Factory { UdpDataSource() }
+                @OptIn(UnstableApi::class)
+                val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+                @OptIn(UnstableApi::class)
+                val mediaSource: MediaSource = mediaSourceFactory.createMediaSource(mediaItem)
+                player?.setMediaSource(mediaSource)
+                Log.d(TAG, "使用 UdpDataSource 播放 RTP/UDP 流")
+            } else {
+                player?.setMediaItem(mediaItem)
+            }
+
+            player?.prepare()
             isPrepared = true
             currentState = UnifiedVideoPlayer.PlayerState.READY
             eventListener?.onStateChanged(currentState)
@@ -209,6 +258,21 @@ class ExoPlayerWrapper : UnifiedVideoPlayer {
     
     override fun getPlayerState(): UnifiedVideoPlayer.PlayerState {
         return currentState
+    }
+
+    /**
+     * 检查是否检测到音频轨道
+     */
+    fun hasAudioTrack(): Boolean {
+        val currentTracks = player?.currentTracks ?: return false
+        for (group in currentTracks.groups) {
+            if (group.type == C.TRACK_TYPE_AUDIO) {
+                Log.d(TAG, "检测到音频轨道: ${group.mediaTrackGroup.length} 个轨道")
+                return true
+            }
+        }
+        Log.d(TAG, "未检测到音频轨道")
+        return false
     }
     
     override fun setPlaybackSpeed(speed: Float) {

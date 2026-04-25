@@ -22,18 +22,11 @@ android {
         // Manifest占位符
         manifestPlaceholders = [isDebug: "true"]
 
-        // This block is different from the one you use to link Gradle
-        // to your CMake or ndk-build script.
-        // 暂时注释掉以解决CMake构建问题
-        // externalNativeBuild {
-        //
-        //     // For ndk-build, instead use the ndkBuild block.
-        //     cmake {
-        //         arguments "-DIS_SO_BUILD=${project.hasProperty('IS_SO_BUILD') ? project.IS_SO_BUILD : true}"
-        //
-        //         abiFilters "armeabi-v7a", "arm64-v8a"
-        //     }
-        // }
+        externalNativeBuild {
+            cmake {
+                abiFilters "arm64-v8a"
+            }
+        }
 
         // Similar to other properties in the defaultConfig block,
         // you can configure the ndk block for each product flavor
@@ -63,16 +56,12 @@ android {
     }
 
     // Encapsulates your external native build configurations.
-    // 暂时注释掉以解决CMake构建问题，专注于测试RTP功能
-    // externalNativeBuild {
-    //
-    //     // Encapsulates your CMake build configurations.
-    //     cmake {
-    //
-    //         // Provides a relative path to your CMake build script.
-    //         path = file("CMakeLists.txt")
-    //     }
-    // }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/jni/CMakeLists.txt")
+            version = "3.21.0+"
+        }
+    }
 }
 
 static def VersionCode() {

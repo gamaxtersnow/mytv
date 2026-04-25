@@ -49,8 +49,8 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
         surfaceView = _binding!!.surfaceView
         surfaceHolder = surfaceView.holder
         surfaceHolder.addCallback(this)
-        // 设置SurfaceHolder像素格式，确保视频正确渲染
-        surfaceHolder.setFormat(android.graphics.PixelFormat.RGB_565)
+        // 设置SurfaceHolder像素格式，OPAQUE让系统选择最优硬件格式（4K减少GPU合成开销）
+        surfaceHolder.setFormat(android.graphics.PixelFormat.OPAQUE)
         // 将SurfaceView置于顶层
         surfaceView.setZOrderOnTop(false)
         surfaceView.setZOrderMediaOverlay(true)

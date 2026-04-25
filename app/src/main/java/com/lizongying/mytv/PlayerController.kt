@@ -8,6 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.lizongying.mytv.UnifiedVideoPlayer
 
@@ -148,6 +149,28 @@ class PlayerController(private val context: Context) {
         currentVideoUrl = url
 
         Log.d(TAG, "使用播放器: ${player.getPlayerType()}")
+
+        // 对于ExoPlayer播放RTP/UDP流，延迟检测音频轨道
+        // 如果没有音频（如MP2格式），自动切换到ijkplayer
+        if (playerType == UnifiedVideoPlayer.PlayerType.EXO_PLAYER &&
+            (PlayerFactory.isRTPStream(url) || PlayerFactory.isUDPStream(url))) {
+            coroutineScope.launch {
+                delay(6000) // 等待6秒让TsExtractor解析PAT/PMT
+                val exoPlayer = unifiedPlayer as? ExoPlayerWrapper
+                if (exoPlayer != null && exoPlayer.getPlayerState() == UnifiedVideoPlayer.PlayerState.PLAYING) {
+                    val hasAudio = exoPlayer.hasAudioTrack()
+                    Log.i(TAG, "音频轨道检测: hasAudio=$hasAudio, url=$url")
+                    if (!hasAudio) {
+                        Log.w(TAG, "ExoPlayer未检测到音频轨道，可能是MP2格式，自动切换到ijkplayer")
+                        // 通知UI切换播放器
+                        eventListener?.onError("此频道使用不支持的音频格式，正在切换播放器...")
+                        // 延迟1秒后切换，让用户看到提示
+                        delay(1000)
+                        switchPlayer(UnifiedVideoPlayer.PlayerType.GSY_PLAYER)
+                    }
+                }
+            }
+        }
     }
 
     /**
