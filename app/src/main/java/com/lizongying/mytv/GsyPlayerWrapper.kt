@@ -53,8 +53,15 @@ class GsyPlayerWrapper : UnifiedVideoPlayer {
             // 开启详细日志以便诊断
             IjkMediaPlayer.native_setLogLevel(IjkMediaPlayer.IJK_LOG_VERBOSE)
 
-            // 禁用硬解（硬解在某些设备上会导致音频问题）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 0L)
+            // 启用硬解（解决4K软解卡顿问题）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-all-videos", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-avc", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-hevc", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-mpeg2", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-mpeg4", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-auto-rotate", 1L)
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "mediacodec-handle-resolution-change", 1L)
 
             // 允许udp协议（rtp://会转为udp://@）
             setOption(
@@ -66,32 +73,40 @@ class GsyPlayerWrapper : UnifiedVideoPlayer {
             // ========== GSYVideoPlayer官方直播/RTSP推荐配置 ==========
             // 不额外优化
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "fast", 1L)
-            // 分析码流大小
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "probesize", 10240L)
+            // 分析码流大小（增大以便正确探测音频流，4K HEVC需要更大）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "probesize", 5000000L)
             // 刷新包
             setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "flush_packets", 1L)
+            // UDP接收缓冲区增大（减少组播丢包）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "buffer_size", 2097152L)
             // 关闭播放器缓冲（必须关闭，否则播放一段时间后会卡住）
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "packet-buffering", 0L)
-            // 丢帧，太卡时尝试丢帧保持同步
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 1L)
+            // 丢帧，太卡时尝试丢帧保持同步（增大丢帧阈值）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "framedrop", 5L)
             // 自动开始播放
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "start-on-prepared", 1L)
             // 跳过循环过滤器（默认值48）
             setOption(IjkMediaPlayer.OPT_CATEGORY_CODEC, "skip_loop_filter", 48L)
-            // 最大缓存数（0=不限制）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 0L)
-            // 默认最小帧数
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", 2L)
-            // 最大缓存时长
-            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max_cached_duration", 30L)
+            // 最大缓存数（限制为8MB防止内存过大）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max-buffer-size", 8388608L)
+            // 默认最小帧数（增加预缓冲帧数减少卡顿）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "min-frames", 5L)
+            // 最大缓存时长（毫秒）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "max_cached_duration", 100L)
             // 是否限制输入缓存数（1=不限制，适合实时流）
             setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "infbuf", 1L)
-            // 不缓冲
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "fflags", "nobuffer")
+            // 禁用音频视频同步启动，避免音频被视频阻塞
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "sync-av-start", 0L)
+            // 禁用精确seek，避免音频初始化延迟
+            setOption(IjkMediaPlayer.OPT_CATEGORY_PLAYER, "accurate-seek", 0L)
+            // 禁用 nobuffer，允许 FFmpeg 内部缓冲以提高抗丢包能力
+            // setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "fflags", "nobuffer")
             // TCP传输数据（UDP组播不需要，但保留以防万一）
             // setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "rtsp_transport", "tcp")
-            // 分析码流时长（默认1024*1000）
-            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzedmaxduration", 100L)
+            // 分析码流时长（增大以便正确探测音频流，4K HEVC需要更长时间）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzedmaxduration", 3000000L)
+            // 最大分析时长（微秒）
+            setOption(IjkMediaPlayer.OPT_CATEGORY_FORMAT, "analyzeduration", 3000000L)
 
             // 监听器
             setupListeners(this)

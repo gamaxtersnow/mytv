@@ -9,15 +9,17 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.lizongying.mytv.databinding.SettingBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class SettingFragment : DialogFragment() {
 
     private var _binding: SettingBinding? = null
     private val binding get() = _binding!!
-
-    private lateinit var updateManager: UpdateManager
 
     override fun onStart() {
         super.onStart()
@@ -47,10 +49,51 @@ class SettingFragment : DialogFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        val context = requireContext() // It‘s safe to get context here.
         _binding = SettingBinding.inflate(inflater, container, false)
-        binding.versionName.text = "当前版本: v${context.appVersionName}"
-        binding.version.text = "https://github.com/lizongying/my-tv"
+
+        binding.remoteUrl.setText(SP.remoteUrl)
+        binding.remoteUrl.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                (activity as MainActivity).settingNeverHide()
+            } else {
+                SP.remoteUrl = binding.remoteUrl.text.toString()
+                (activity as MainActivity).settingDelayHide()
+            }
+        }
+
+        binding.updateNow.setOnClickListener {
+            val url = binding.remoteUrl.text.toString()
+            if (url.isNotEmpty()) {
+                SP.remoteUrl = url
+                binding.updateStatus.text = "更新中..."
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val success = RemotePlaylistManager.checkAndUpdate(requireContext(), true)
+                    withContext(Dispatchers.Main) {
+                        if (success) {
+                            binding.updateStatus.text = "更新成功"
+                            TVList.refresh(requireContext())
+                            (activity as MainActivity).mainFragment.reloadRows()
+                        } else {
+                            binding.updateStatus.text = "更新失败"
+                        }
+                        (activity as MainActivity).settingDelayHide()
+                    }
+                }
+            } else {
+                binding.updateStatus.text = "链接为空"
+            }
+            (activity as MainActivity).settingDelayHide()
+        }
+
+        val cachedCount = RemotePlaylistManager.getCachedChannelCount(requireContext())
+        val lastUpdate = SP.lastUpdateTime
+        val statusText = if (lastUpdate > 0) {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault())
+            "缓存: $cachedCount 个频道 | 上次: ${sdf.format(java.util.Date(lastUpdate))}"
+        } else {
+            "缓存: $cachedCount 个频道 | 未更新"
+        }
+        binding.updateStatus.text = statusText
 
         binding.switchChannelReversal.run {
             isChecked = SP.channelReversal
@@ -84,37 +127,12 @@ class SettingFragment : DialogFragment() {
             }
         }
 
-        updateManager = UpdateManager(context, this, context.appVersionCode)
-        binding.checkVersion.setOnClickListener(
-            OnClickListenerCheckVersion(
-                activity as MainActivity,
-                updateManager
-            )
-        )
-
         binding.exit.setOnClickListener{
             requireActivity().finishAffinity()
         }
 
 
         return binding.root
-    }
-
-    fun setVersionName(versionName: String) {
-        if (_binding != null) {
-            binding.versionName.text = versionName
-        }
-    }
-
-    internal class OnClickListenerCheckVersion(
-        private val mainActivity: MainActivity,
-        private val updateManager: UpdateManager
-    ) :
-        View.OnClickListener {
-        override fun onClick(view: View?) {
-            mainActivity.settingDelayHide()
-            updateManager.checkAndUpdate()
-        }
     }
 
     override fun onDestroyView() {

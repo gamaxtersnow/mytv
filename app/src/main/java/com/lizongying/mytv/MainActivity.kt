@@ -24,13 +24,14 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class MainActivity : FragmentActivity(), Request.RequestListener {
 
     private var ready = 0
     private val playerFragment = PlayerFragment()
-    private val mainFragment = MainFragment()
+    val mainFragment = MainFragment()
     private val infoFragment = InfoFragment()
     private val channelFragment = ChannelFragment()
     private var timeFragment = TimeFragment()
@@ -115,6 +116,22 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             ready++
         }
 
+        // 初始化默认远程URL
+        if (SP.remoteUrl.isEmpty()) {
+            SP.remoteUrl = RemotePlaylistManager.getDefaultUrl()
+        }
+
+        // 加载缓存的远程列表，与本地凤凰台合并
+        TVList.refresh(this)
+
+        // 后台检查并触发自动更新
+        lifecycleScope.launch(Dispatchers.IO) {
+            RemotePlaylistManager.checkAndUpdate(this@MainActivity)
+            withContext(Dispatchers.Main) {
+                TVList.refresh(this@MainActivity)
+                mainFragment.reloadRows()
+            }
+        }
     }
 
     fun showInfoFragment(tvViewModel: TVViewModel) {

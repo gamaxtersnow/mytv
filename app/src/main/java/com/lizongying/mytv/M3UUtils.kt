@@ -17,7 +17,7 @@ object M3UUtils {
     fun parseM3U8Content(content: String): List<TV> {
         val channels = mutableListOf<TV>()
         var currentTitle = ""
-        var currentGroup = "本地IPTV"
+        var currentGroup = "自定义"
         var currentLogo = ""
         
         val lines = content.lines()

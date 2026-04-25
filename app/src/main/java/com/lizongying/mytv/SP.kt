@@ -26,6 +26,15 @@ object SP {
     // guid
     private const val KEY_GUID = "guid"
 
+    // Remote M3U8 playlist URL
+    private const val KEY_REMOTE_URL = "remote_url"
+
+    // Auto-update interval in milliseconds (default: 24 hours)
+    private const val KEY_UPDATE_INTERVAL = "update_interval"
+
+    // Last successful update timestamp
+    private const val KEY_LAST_UPDATE_TIME = "last_update_time"
+
     private lateinit var sp: SharedPreferences
 
     /**
@@ -62,4 +71,16 @@ object SP {
     var guid: String
         get() = sp.getString(KEY_GUID, "") ?: ""
         set(value) = sp.edit().putString(KEY_GUID, value).apply()
+
+    var remoteUrl: String
+        get() = sp.getString(KEY_REMOTE_URL, "") ?: ""
+        set(value) = sp.edit().putString(KEY_REMOTE_URL, value).apply()
+
+    var updateInterval: Long
+        get() = sp.getLong(KEY_UPDATE_INTERVAL, 24 * 60 * 60 * 1000L)
+        set(value) = sp.edit().putLong(KEY_UPDATE_INTERVAL, value).apply()
+
+    var lastUpdateTime: Long
+        get() = sp.getLong(KEY_LAST_UPDATE_TIME, 0L)
+        set(value) = sp.edit().putLong(KEY_LAST_UPDATE_TIME, value).apply()
 }

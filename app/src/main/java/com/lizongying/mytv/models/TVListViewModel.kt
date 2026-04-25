@@ -28,6 +28,11 @@ class TVListViewModel : ViewModel() {
         }
     }
 
+    fun clearTVViewModels() {
+        _tvListViewModel.value?.clear()
+        maxNum.clear()
+    }
+
     fun getTVViewModel(id: Int): TVViewModel? {
         return _tvListViewModel.value?.get(id)
     }
