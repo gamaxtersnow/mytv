@@ -13,8 +13,12 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.util.EventLogger
 import androidx.media3.ui.PlayerView
 
@@ -41,26 +45,65 @@ class ExoPlayerWrapper : UnifiedVideoPlayer {
     override fun initialize(context: Context): Boolean {
         this.context = context
         return try {
-            // Configure renderers factory with FFmpeg extension for MP2/AC3/EAC3 audio decoding
-            val renderersFactory = DefaultRenderersFactory(context)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            // Custom MediaCodecSelector: prioritize Hisilicon HEVC decoder for 4K playback
+            @OptIn(UnstableApi::class)
+            val customCodecSelector = MediaCodecSelector { mimeType, requiresSecureDecoder, requiresTunnelingDecoder ->
+                val decoderInfos = MediaCodecUtil.getDecoderInfos(
+                    mimeType, requiresSecureDecoder, requiresTunnelingDecoder
+                )
+                // For HEVC/H.265, move Hisilicon decoder to the front to ensure selection
+                if (mimeType == "video/hevc") {
+                    val hisiIndex = decoderInfos.indexOfFirst { it.name == "OMX.hisi.video.decoder.hevc" }
+                    if (hisiIndex > 0) {
+                        val mutableDecoders = decoderInfos.toMutableList()
+                        val hisiDecoder = mutableDecoders.removeAt(hisiIndex)
+                        mutableDecoders.add(0, hisiDecoder)
+                        Log.d(TAG, "Prioritized Hisilicon HEVC decoder for 4K playback")
+                        return@MediaCodecSelector mutableDecoders
+                    }
+                }
+                decoderInfos
+            }
 
-            // 使用配置的builder或默认创建ExoPlayer
+            // Configure renderers factory with FFmpeg extension and custom codec selector
+            val renderersFactory = CustomRenderersFactory(context)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+                .setMediaCodecSelector(customCodecSelector)
+                .setEnableDecoderFallback(true)
+
+            // Configure track selector to allow formats exceeding renderer capabilities
+            // This is critical for 4K HEVC 10-bit HLG on Huawei Hisilicon decoder
+            val trackSelector = DefaultTrackSelector(context).apply {
+                setParameters(
+                    buildUponParameters()
+                        .setExceedRendererCapabilitiesIfNecessary(true)
+                        .setExceedVideoConstraintsIfNecessary(true)
+                        .build()
+                )
+            }
+
+            // Build ExoPlayer with custom renderers factory and track selector
             val builder = exoPlayerConfig ?: ExoPlayer.Builder(context, renderersFactory)
             if (exoPlayerConfig != null) {
                 builder.setRenderersFactory(renderersFactory)
             }
+            builder.setTrackSelector(trackSelector)
 
-            // Configure larger buffer for multicast streams to allow TsExtractor
-            // enough data to parse PAT/PMT tables and detect audio tracks
+            // Configure buffer for high-bitrate 4K multicast streams.
+            // CRITICAL: Disable byte target (set to LENGTH_UNSET). For 40Mbps 4K HEVC,
+            // the default 2MB byte target equals only ~0.4s of data. LoadControl stops
+            // reading when byte target is reached, but TsExtractor hasn't buffered enough
+            // time, causing a stop-start throttling loop. UDP data keeps arriving and
+            // overflows the packet queue. Time-based buffering only, matching HTTP stream
+            // behavior where ExoPlayer controls the download rate.
             val loadControl = DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    /* minBufferMs = */ 5000,
-                    /* maxBufferMs = */ 30000,
-                    /* bufferForPlaybackMs = */ 2000,
-                    /* bufferForPlaybackAfterRebufferMs = */ 3000
+                    /* minBufferMs = */ 2000,
+                    /* maxBufferMs = */ 50000,
+                    /* bufferForPlaybackMs = */ 500,
+                    /* bufferForPlaybackAfterRebufferMs = */ 2000
                 )
-                .setTargetBufferBytes(C.DEFAULT_BUFFER_SEGMENT_SIZE * 32)
+                .setTargetBufferBytes(C.LENGTH_UNSET)
                 .build()
             builder.setLoadControl(loadControl)
 

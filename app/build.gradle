@@ -51,6 +51,11 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    // Suppress Kotlin interop warnings that don't affect runtime
+    tasks.withType(JavaCompile) {
+        options.compilerArgs += ['-Xlint:none']
+    }
+
     kotlinOptions {
         jvmTarget = 17
     }

@@ -10,49 +10,50 @@ import java.net.DatagramPacket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.MulticastSocket
-import java.nio.ByteBuffer
-import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 /**
  * ExoPlayer DataSource for UDP multicast streaming (RTP/UDP IPTV)
  *
- * Receives UDP multicast packets, handles RTP header stripping if present,
- * and feeds MPEG-TS payload to ExoPlayer's buffer management.
- *
- * Key advantage over ijkplayer: uses ExoPlayer's advanced DefaultLoadControl
- * for jitter smoothing, similar to udpxy->HTTP approach.
+ * Optimized for high-bitrate 4K HEVC streams:
+ * - Large packet queue (8192) to handle burst traffic
+ * - Zero-copy payload delivery where possible
+ * - ByteArray pool to reduce GC pressure
  */
 class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
 
     companion object {
         private const val TAG = "UdpDataSource"
         private const val SOCKET_TIMEOUT_MS = 8000
-        private const val PACKET_QUEUE_SIZE = 256
         private const val RTP_HEADER_SIZE = 12
-        private const val RTP_VERSION_MASK = 0xC0.toByte()
-        private const val RTP_VERSION_2 = 0x80.toByte()
         private const val RTP_PAYLOAD_MPEG_TS = 33
 
-        // Sequence number reordering window
-        private const val SEQ_BUFFER_SIZE = 128
-        private const val SEQ_MAX_WAIT_MS = 50L
-        private const val SEQ_ACCEPTABLE_GAP = 8
+        // ByteArray pool to reduce GC pressure for high packet rates
+        private const val POOL_SIZE = 256
+        private val bufferPool = LinkedBlockingQueue<ByteArray>()
+
+        init {
+            // Pre-allocate pool buffers
+            repeat(POOL_SIZE) {
+                bufferPool.offer(ByteArray(2048))
+            }
+        }
     }
 
     private var socket: MulticastSocket? = null
     private var uri: Uri? = null
     private var opened = false
 
-    // Raw packet queue from receiver thread
-    private val rawPacketQueue = ArrayBlockingQueue<DatagramPacket>(PACKET_QUEUE_SIZE)
+    // Packet data holder - avoids DatagramPacket object overhead
+    private data class Packet(val data: ByteArray, val length: Int, val rtpHeaderSize: Int = 0)
 
-    // Sorted packet delivery using TreeMap for sequence-number ordering
-    private val sortedPackets = java.util.TreeMap<Int, DatagramPacket>()
-    private var nextExpectedSeq: Int? = null
+    // Large bounded queue: 65536 packets * ~2KB = ~128MB max
+    // Prevents OOM while giving TsExtractor enough data for 4K track detection
+    private val packetQueue = LinkedBlockingQueue<Packet>(65536)
 
     // Current packet being consumed
-    private var currentPacket: DatagramPacket? = null
+    private var currentPacket: Packet? = null
     private var currentPacketOffset = 0
 
     // RTP detection state
@@ -62,6 +63,11 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
     private var receiverThread: Thread? = null
     private var receiverRunning = false
 
+    // Stats for diagnostics
+    private var packetsReceived = 0L
+    private var packetsDropped = 0L
+    private var lastStatsTime = 0L
+
     @Throws(IOException::class)
     override fun open(dataSpec: DataSpec): Long {
         transferInitializing(dataSpec)
@@ -70,30 +76,37 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
         val url = uri.toString()
         Log.i(TAG, "Opening UDP/RTP stream: $url")
 
-        // Parse address and port from URL
-        // Supported formats: udp://@239.0.0.1:1234, rtp://239.0.0.1:1234
         val (address, port) = parseUrl(url)
             ?: throw IOException("Invalid UDP/RTP URL: $url")
 
         try {
             socket = MulticastSocket(port).apply {
                 soTimeout = SOCKET_TIMEOUT_MS
-                receiveBufferSize = 8 * 1024 * 1024 // 8MB socket buffer
+                // 16MB socket receive buffer for high bitrate 4K streams
+                receiveBufferSize = 16 * 1024 * 1024
             }
 
             val inetAddress = InetAddress.getByName(address)
             val group = InetSocketAddress(inetAddress, port)
             socket?.joinGroup(group, null)
-            Log.d(TAG, "Joined multicast group: $address:$port")
+            Log.d(TAG, "Joined multicast group: $address:$port, socketBuffer=${socket?.receiveBufferSize}")
 
-            // Start receiver thread
+            // Reset stats
+            packetsReceived = 0
+            packetsDropped = 0
+            lastStatsTime = System.currentTimeMillis()
+
+            // Start receiver thread with high priority to minimize kernel buffer overflow
             receiverRunning = true
-            receiverThread = Thread({ receiveLoop() }, "UdpReceiver").apply { start() }
+            receiverThread = Thread({ receiveLoop() }, "UdpReceiver").apply {
+                // High priority for receiver thread to keep socket buffer drained
+                priority = Thread.MAX_PRIORITY
+                start()
+            }
 
             opened = true
             transferStarted(dataSpec)
 
-            // Return C.LENGTH_UNSET for unbounded live streams
             return C.LENGTH_UNSET.toLong()
         } catch (e: Exception) {
             closeSocket()
@@ -111,13 +124,15 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
 
         while (remaining > 0) {
             // Check if we have data from current packet
-            if (currentPacket != null) {
-                val payload = getPayload(currentPacket!!)
-                val available = payload.size - currentPacketOffset
+            val pkt = currentPacket
+            if (pkt != null) {
+                val payloadOffset = pkt.rtpHeaderSize
+                val payloadSize = pkt.length - pkt.rtpHeaderSize
+                val available = payloadSize - currentPacketOffset
 
                 if (available > 0) {
                     val toRead = minOf(remaining, available)
-                    System.arraycopy(payload, currentPacketOffset, buffer, currentOffset, toRead)
+                    System.arraycopy(pkt.data, payloadOffset + currentPacketOffset, buffer, currentOffset, toRead)
                     currentPacketOffset += toRead
                     currentOffset += toRead
                     remaining -= toRead
@@ -125,22 +140,23 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
                     bytesTransferred(toRead)
                     continue
                 } else {
-                    // Current packet exhausted
+                    // Current packet exhausted - return buffer to pool
+                    returnBuffer(currentPacket!!.data)
                     currentPacket = null
                     currentPacketOffset = 0
                 }
             }
 
-            // Get next packet from queue (with sequence number sorting for RTP)
+            // Get next packet from queue - use 1s timeout to avoid premature END_OF_INPUT
+            // which causes ExoPlayer Extractor to think the stream has ended
             currentPacket = try {
-                getNextPacket()
+                packetQueue.poll(1000, TimeUnit.MILLISECONDS)
             } catch (e: InterruptedException) {
                 Thread.currentThread().interrupt()
                 break
             }
 
             if (currentPacket == null) {
-                // Timeout - if we've read some data, return it; otherwise try again
                 if (totalRead > 0) break
                 if (!receiverRunning) return C.RESULT_END_OF_INPUT
                 continue
@@ -161,10 +177,13 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
         receiverThread = null
 
         closeSocket()
-        rawPacketQueue.clear()
-        sortedPackets.clear()
-        nextExpectedSeq = null
-        sortWaitStartTime = 0
+
+        // Return all queued packets to pool
+        while (true) {
+            val pkt = packetQueue.poll() ?: break
+            returnBuffer(pkt.data)
+        }
+        currentPacket?.let { returnBuffer(it.data) }
         currentPacket = null
         currentPacketOffset = 0
         isRtpStream = null
@@ -175,39 +194,50 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
         }
     }
 
+    // Reusable datagram to avoid per-packet allocation
+    private var reuseDatagram: DatagramPacket? = null
+    // Cached RTP header size after first packet
+    private var cachedRtpHeaderSize: Int? = null
+
     private fun receiveLoop() {
+        // Pre-allocate reusable datagram
+        val dg = DatagramPacket(ByteArray(0), 0)
+        reuseDatagram = dg
+
         while (receiverRunning) {
             try {
-                // Allocate new buffer for each packet to avoid data races
-                val buffer = ByteArray(65535)
-                val packet = DatagramPacket(buffer, buffer.size)
-                socket?.receive(packet)
+                // Use pooled buffer or allocate new one
+                val buffer = acquireBuffer()
+                // Reuse datagram with new buffer (avoid allocation)
+                dg.setData(buffer, 0, buffer.size)
 
-                // Copy received data to dedicated buffer
-                val packetLength = packet.length
-                val packetOffset = packet.offset
-                val dedicatedBuffer = ByteArray(packetLength)
-                System.arraycopy(packet.data, packetOffset, dedicatedBuffer, 0, packetLength)
-                val dedicatedPacket = DatagramPacket(dedicatedBuffer, packetLength)
+                socket?.receive(dg)
 
-                // Detect RTP on first packet
-                if (isRtpStream == null && packetLength > 0) {
-                    isRtpStream = detectRtp(dedicatedBuffer, 0, packetLength)
-                    Log.i(TAG, "Stream type detected: ${if (isRtpStream == true) "RTP" else "Raw UDP"}, pktSize=$packetLength, first ${minOf(packetLength, 32)} bytes: ${dedicatedBuffer.take(minOf(packetLength, 32)).joinToString(" ") { "%02X".format(it) }}")
-                } else if (isRtpStream != null && rawPacketQueue.size % 100 == 0) {
-                    // Periodic debug: check payload starts with TS sync byte 0x47
-                    val headerSize = getRtpHeaderSize(dedicatedBuffer, 0, packetLength)
-                    if (packetLength > headerSize) {
-                        val syncByte = dedicatedBuffer[headerSize]
-                        if (syncByte.toInt() != 0x47) {
-                            Log.w(TAG, "TS sync byte mismatch! Expected 0x47, got 0x${"%02X".format(syncByte)}, headerSize=$headerSize, pktSize=$packetLength")
-                        }
-                    }
+                val packetLength = dg.length
+                if (packetLength <= 0) continue
+
+                packetsReceived++
+
+                // Detect RTP on first packet only
+                if (isRtpStream == null) {
+                    isRtpStream = detectRtp(buffer, 0, packetLength)
+                    cachedRtpHeaderSize = if (isRtpStream == true) {
+                        calculateRtpHeaderSize(buffer, 0, packetLength)
+                    } else 0
+                    Log.i(TAG, "Stream type: ${if (isRtpStream == true) "RTP" else "Raw UDP"}, " +
+                            "pktSize=$packetLength, queueSize=${packetQueue.size}")
                 }
 
-                // Offer to raw queue (drop if full to avoid memory bloat)
-                if (!rawPacketQueue.offer(dedicatedPacket)) {
-                    Log.w(TAG, "Raw packet queue full, dropping packet (size=$packetLength)")
+                val rtpHeaderSize = cachedRtpHeaderSize ?: 0
+
+                // Create packet holder
+                val packet = Packet(buffer, packetLength, rtpHeaderSize)
+
+                // Offer to bounded queue (drop if full to prevent memory bloat)
+                if (!packetQueue.offer(packet)) {
+                    returnBuffer(buffer)
+                    packetsDropped++
+                    logDropStats(packetLength)
                 }
             } catch (e: Exception) {
                 if (receiverRunning) {
@@ -217,169 +247,58 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
         }
     }
 
-    /**
-     * Parse RTP sequence number from packet (big-endian, bytes 2-3)
-     */
-    private fun getRtpSequenceNumber(data: ByteArray, offset: Int, length: Int): Int? {
-        if (length < 4) return null
-        if ((data[offset].toInt() and 0xC0) != 0x80) return null // Not RTP v2
-        return ((data[offset + 2].toInt() and 0xFF) shl 8) or
-               (data[offset + 3].toInt() and 0xFF)
+    private fun logDropStats(packetLength: Int) {
+        val now = System.currentTimeMillis()
+        if (now - lastStatsTime >= 1000) {
+            val dropRate = if (packetsReceived > 0) {
+                (packetsDropped * 100 / packetsReceived).toInt()
+            } else 0
+            Log.w(TAG, "Queue overflow: dropped=$packetsDropped, received=$packetsReceived, " +
+                    "dropRate=${dropRate}%, queueSize=${packetQueue.size}, lastPktSize=$packetLength")
+            lastStatsTime = now
+        }
     }
 
-    /**
-     * Get next packet. For live streaming, direct delivery is preferred
-     * over reordering to minimize latency.
-     */
-    private fun getNextPacket(): DatagramPacket? {
-        return rawPacketQueue.poll(1000, TimeUnit.MILLISECONDS)
+    private fun acquireBuffer(): ByteArray {
+        return bufferPool.poll() ?: ByteArray(2048)
     }
 
-    private var sortWaitStartTime: Long = 0
-
-    /**
-     * Sequence-number-aware packet delivery.
-     * Buffers packets and delivers them in sequence number order.
-     * Handles packet loss by skipping missing sequence numbers after timeout.
-     */
-    private fun getNextSortedPacket(): DatagramPacket? {
-        // First, drain raw queue into sorted buffer
-        while (true) {
-            val raw = rawPacketQueue.poll() ?: break
-            val seq = getRtpSequenceNumber(raw.data, 0, raw.length)
-            if (seq != null) {
-                sortedPackets[seq] = raw
-            } else {
-                // Non-RTP packet, deliver immediately
-                return raw
-            }
+    private fun returnBuffer(buffer: ByteArray) {
+        if (buffer.size == 2048) {
+            bufferPool.offer(buffer)
         }
-
-        // If we have sorted packets, try to deliver in order
-        if (sortedPackets.isNotEmpty()) {
-            if (nextExpectedSeq == null) {
-                // First packet: use lowest sequence number
-                val firstSeq = sortedPackets.firstKey()
-                nextExpectedSeq = firstSeq
-                sortWaitStartTime = 0
-                Log.d(TAG, "First RTP seq=$firstSeq, bufferSize=${sortedPackets.size}")
-            }
-
-            val expected = nextExpectedSeq!!
-
-            // Check if expected packet is available
-            if (sortedPackets.containsKey(expected)) {
-                val packet = sortedPackets.remove(expected)
-                nextExpectedSeq = (expected + 1) and 0xFFFF
-                sortWaitStartTime = 0
-                return packet
-            }
-
-            // Check gap size to expected packet
-            val firstSeq = sortedPackets.firstKey()
-            val gap = if (firstSeq >= expected) {
-                firstSeq - expected
-            } else {
-                // Wrap around
-                (0xFFFF - expected) + firstSeq + 1
-            }
-
-            // If gap is small, wait a bit for the missing packet
-            // If gap is large or we've waited too long, deliver what we have
-            val now = System.currentTimeMillis()
-            if (sortWaitStartTime == 0L) {
-                sortWaitStartTime = now
-            }
-            val waited = now - sortWaitStartTime
-
-            if (gap <= SEQ_ACCEPTABLE_GAP && waited < SEQ_MAX_WAIT_MS) {
-                // Small gap, wait a bit more
-                return rawPacketQueue.poll(10, TimeUnit.MILLISECONDS)
-            }
-
-            // Gap too large or waited too long: deliver oldest available packet
-            val packet = sortedPackets.remove(firstSeq)
-            if (gap > 0 && gap < 100) {
-                Log.w(TAG, "Skip gap=$gap, delivering seq=$firstSeq (expected=$expected), waited=${waited}ms")
-            }
-            nextExpectedSeq = (firstSeq + 1) and 0xFFFF
-            sortWaitStartTime = 0
-            return packet
-        }
-
-        // No packets buffered, wait for more
-        return rawPacketQueue.poll(10, TimeUnit.MILLISECONDS)
     }
 
     private fun detectRtp(data: ByteArray, offset: Int, length: Int): Boolean {
         if (length < RTP_HEADER_SIZE) return false
-        val firstByte = data[offset]
-        val secondByte = data[offset + 1]
-
-        // Check RTP version 2 (Kotlin Byte bitwise ops need Int conversion)
-        if ((firstByte.toInt() and 0xC0) != 0x80) return false
-
-        // Check payload type (33 = MPEG-TS)
-        val payloadType = secondByte.toInt() and 0x7F
-        Log.d(TAG, "RTP detection: version=${(firstByte.toInt() and 0xC0) shr 6}, PT=$payloadType")
-
+        if ((data[offset].toInt() and 0xC0) != 0x80) return false
+        val payloadType = data[offset + 1].toInt() and 0x7F
         return payloadType == RTP_PAYLOAD_MPEG_TS
     }
 
-    /**
-     * Calculate actual RTP header size including CSRC and extension
-     */
-    private fun getRtpHeaderSize(data: ByteArray, offset: Int, length: Int): Int {
+    private fun calculateRtpHeaderSize(data: ByteArray, offset: Int, length: Int): Int {
         if (length < 12) return 0
-        val firstByte = data[offset]
-        val cc = firstByte.toInt() and 0x0F          // CSRC count
-        val hasExtension = (firstByte.toInt() shr 4) and 1  // Extension flag
-
+        val cc = data[offset].toInt() and 0x0F
+        val hasExtension = (data[offset].toInt() shr 4) and 1
         var headerSize = 12 + cc * 4
-
-        // Handle RTP extension header
         if (hasExtension == 1 && length >= headerSize + 4) {
             val extensionLength = ((data[offset + headerSize + 2].toInt() and 0xFF) shl 8) or
-                                  (data[offset + headerSize + 3].toInt() and 0xFF)
+                    (data[offset + headerSize + 3].toInt() and 0xFF)
             headerSize += 4 + extensionLength * 4
         }
-
         return headerSize
-    }
-
-    private fun getPayload(packet: DatagramPacket): ByteArray {
-        val data = packet.data
-        val length = packet.length
-
-        return if (isRtpStream == true) {
-            val headerSize = getRtpHeaderSize(data, 0, length)
-            if (headerSize > 0 && length > headerSize) {
-                val payloadLength = length - headerSize
-                val payload = ByteArray(payloadLength)
-                System.arraycopy(data, headerSize, payload, 0, payloadLength)
-                payload
-            } else {
-                data
-            }
-        } else {
-            // Raw UDP data - packet already has dedicated buffer with offset=0
-            data
-        }
     }
 
     private fun parseUrl(url: String): Pair<String, Int>? {
         return when {
             url.startsWith("rtp://", ignoreCase = true) -> {
-                val remainder = url.removePrefix("rtp://")
-                parseAddressPort(remainder)
+                parseAddressPort(url.removePrefix("rtp://"))
             }
             url.startsWith("udp://@", ignoreCase = true) -> {
-                val remainder = url.removePrefix("udp://@")
-                parseAddressPort(remainder)
+                parseAddressPort(url.removePrefix("udp://@"))
             }
             url.startsWith("udp://", ignoreCase = true) -> {
-                val remainder = url.removePrefix("udp://")
-                parseAddressPort(remainder)
+                parseAddressPort(url.removePrefix("udp://"))
             }
             else -> null
         }
@@ -400,14 +319,10 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
                 val inetAddress = InetAddress.getByName(groupAddress)
                 socket?.leaveGroup(inetAddress)
             }
-        } catch (e: Exception) {
-            // Ignore leave group errors
-        }
+        } catch (e: Exception) { /* ignore */ }
         try {
             socket?.close()
-        } catch (e: Exception) {
-            // Ignore close errors
-        }
+        } catch (e: Exception) { /* ignore */ }
         socket = null
     }
 }
