@@ -46,7 +46,7 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
     private var opened = false
 
     // Packet data holder - avoids DatagramPacket object overhead
-    private data class Packet(val data: ByteArray, val length: Int, val rtpHeaderSize: Int = 0)
+    private data class Packet(val data: ByteArray, val length: Int, val rtpHeaderSize: Int = 0, val seqNumber: Int = -1)
 
     // Large bounded queue: 65536 packets * ~2KB = ~128MB max
     // Prevents OOM while giving TsExtractor enough data for 4K track detection
@@ -63,9 +63,20 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
     private var receiverThread: Thread? = null
     private var receiverRunning = false
 
+    // ---- RTP sequence reordering (lightweight) ----
+    // Small window to handle network jitter without adding significant latency.
+    // HEVC reference frames span ~100-200 RTP packets; a 64-packet window
+    // handles typical WiFi jitter while keeping memory low.
+    private val sortedPackets = java.util.TreeMap<Int, Packet>()
+    private var nextExpectedSeq: Int? = null
+    private var lastSeqReceived: Int? = null
+    private val SEQ_BUFFER_SIZE = 128
+
     // Stats for diagnostics
     private var packetsReceived = 0L
     private var packetsDropped = 0L
+    private var packetsOutOfOrder = 0L
+    private var packetsLostDetected = 0L
     private var lastStatsTime = 0L
 
     @Throws(IOException::class)
@@ -91,10 +102,15 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
             socket?.joinGroup(group, null)
             Log.d(TAG, "Joined multicast group: $address:$port, socketBuffer=${socket?.receiveBufferSize}")
 
-            // Reset stats
+            // Reset stats and ordering state
             packetsReceived = 0
             packetsDropped = 0
+            packetsOutOfOrder = 0
+            packetsLostDetected = 0
             lastStatsTime = System.currentTimeMillis()
+            nextExpectedSeq = null
+            lastSeqReceived = null
+            sortedPackets.clear()
 
             // Start receiver thread with high priority to minimize kernel buffer overflow
             receiverRunning = true
@@ -183,10 +199,17 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
             val pkt = packetQueue.poll() ?: break
             returnBuffer(pkt.data)
         }
+        // Return sorted cache packets to pool
+        for (pkt in sortedPackets.values) {
+            returnBuffer(pkt.data)
+        }
+        sortedPackets.clear()
         currentPacket?.let { returnBuffer(it.data) }
         currentPacket = null
         currentPacketOffset = 0
         isRtpStream = null
+        nextExpectedSeq = null
+        lastSeqReceived = null
 
         if (opened) {
             opened = false
@@ -229,15 +252,22 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
                 }
 
                 val rtpHeaderSize = cachedRtpHeaderSize ?: 0
+                val seqNumber = if (isRtpStream == true) extractRtpSequenceNumber(buffer, 0) else -1
 
                 // Create packet holder
-                val packet = Packet(buffer, packetLength, rtpHeaderSize)
+                val packet = Packet(buffer, packetLength, rtpHeaderSize, seqNumber)
 
-                // Offer to bounded queue (drop if full to prevent memory bloat)
-                if (!packetQueue.offer(packet)) {
-                    returnBuffer(buffer)
-                    packetsDropped++
-                    logDropStats(packetLength)
+                // For RTP streams, use sequence-number ordering to handle jitter.
+                // HEVC reference frames span many packets; out-of-order delivery
+                // causes "Ref frame lost" and AV sync drift.
+                if (isRtpStream == true && seqNumber >= 0) {
+                    handleSequencedPacket(seqNumber, packet)
+                } else {
+                    if (!packetQueue.offer(packet)) {
+                        returnBuffer(buffer)
+                        packetsDropped++
+                        logDropStats(packetLength)
+                    }
                 }
             } catch (e: Exception) {
                 if (receiverRunning) {
@@ -247,14 +277,139 @@ class UdpDataSource : BaseDataSource(/* isNetwork = */ true) {
         }
     }
 
-    private fun logDropStats(packetLength: Int) {
+    /**
+     * Handle a sequenced RTP packet with lightweight reordering.
+     * Uses a 64-packet window to absorb network jitter without adding
+     * perceptible latency.
+     */
+    private fun handleSequencedPacket(seqNumber: Int, packet: Packet) {
+        lastSeqReceived = seqNumber
+
+        if (nextExpectedSeq == null) {
+            // First packet: establish baseline
+            nextExpectedSeq = (seqNumber + 1) and 0xFFFF
+            if (!packetQueue.offer(packet)) {
+                returnBuffer(packet.data)
+                packetsDropped++
+            }
+            return
+        }
+
+        val expected = nextExpectedSeq!!
+        // Forward diff: how far ahead seqNumber is from expected
+        val forwardDiff = (seqNumber - expected) and 0xFFFF
+        // Backward diff: how far behind seqNumber is from expected
+        val backwardDiff = (expected - seqNumber) and 0xFFFF
+
+        when {
+            forwardDiff == 0 -> {
+                // In-order packet: output immediately and flush any cached successors
+                nextExpectedSeq = (expected + 1) and 0xFFFF
+                if (!packetQueue.offer(packet)) {
+                    returnBuffer(packet.data)
+                    packetsDropped++
+                } else {
+                    flushSortedPackets()
+                }
+            }
+            forwardDiff in 1..SEQ_BUFFER_SIZE -> {
+                // Future packet (within window): cache for reordering
+                packetsOutOfOrder++
+                val old = sortedPackets.put(seqNumber, packet)
+                if (old != null) {
+                    // Duplicate sequence number: keep newer, return older buffer
+                    returnBuffer(old.data)
+                }
+                // If cache grows too large, force-output the oldest packet
+                // to prevent memory bloat on sustained jitter
+                if (sortedPackets.size > SEQ_BUFFER_SIZE) {
+                    val oldestSeq = sortedPackets.firstKey()
+                    val oldestPacket = sortedPackets.remove(oldestSeq)
+                    if (oldestPacket != null) {
+                        nextExpectedSeq = (oldestSeq + 1) and 0xFFFF
+                        if (!packetQueue.offer(oldestPacket)) {
+                            returnBuffer(oldestPacket.data)
+                            packetsDropped++
+                        } else {
+                            flushSortedPackets()
+                        }
+                    }
+                }
+            }
+            backwardDiff in 1..SEQ_BUFFER_SIZE -> {
+                // Late packet (arrived after we already passed this sequence number).
+                // The frame it belongs to is already broken, so drop it to avoid
+                // feeding discontinuous data to the decoder.
+                returnBuffer(packet.data)
+                packetsDropped++
+            }
+            else -> {
+                // Large gap in both directions: likely a sequence number wrap-around
+                // or severe burst loss. Reset state to avoid stalling.
+                packetsLostDetected += forwardDiff.toLong()
+                Log.w(TAG, "Large seq gap: expected=$expected, got=$seqNumber, " +
+                        "forwardDiff=$forwardDiff, backwardDiff=$backwardDiff. " +
+                        "Resetting reorder state.")
+                // Flush cached packets in order before reset
+                while (sortedPackets.isNotEmpty()) {
+                    val oldestSeq = sortedPackets.firstKey()
+                    val oldestPacket = sortedPackets.remove(oldestSeq)
+                    if (oldestPacket != null) {
+                        if (!packetQueue.offer(oldestPacket)) {
+                            returnBuffer(oldestPacket.data)
+                            packetsDropped++
+                        }
+                    }
+                }
+                nextExpectedSeq = (seqNumber + 1) and 0xFFFF
+                if (!packetQueue.offer(packet)) {
+                    returnBuffer(packet.data)
+                    packetsDropped++
+                }
+            }
+        }
+    }
+
+    /**
+     * Flush any cached packets that are now in-order.
+     */
+    private fun flushSortedPackets() {
+        while (true) {
+            val expected = nextExpectedSeq ?: break
+            val pkt = sortedPackets.remove(expected)
+            if (pkt != null) {
+                nextExpectedSeq = (expected + 1) and 0xFFFF
+                if (!packetQueue.offer(pkt)) {
+                    returnBuffer(pkt.data)
+                    packetsDropped++
+                }
+            } else {
+                break
+            }
+        }
+    }
+
+    /**
+     * Extract 16-bit RTP sequence number (bytes 2-3 of header).
+     */
+    private fun extractRtpSequenceNumber(data: ByteArray, offset: Int): Int {
+        if (data.size < offset + 4) return -1
+        return ((data[offset + 2].toInt() and 0xFF) shl 8) or
+                (data[offset + 3].toInt() and 0xFF)
+    }
+
+    private fun logDropStats(@Suppress("UNUSED_PARAMETER") packetLength: Int) {
         val now = System.currentTimeMillis()
-        if (now - lastStatsTime >= 1000) {
+        if (now - lastStatsTime >= 5000) {
             val dropRate = if (packetsReceived > 0) {
                 (packetsDropped * 100 / packetsReceived).toInt()
             } else 0
-            Log.w(TAG, "Queue overflow: dropped=$packetsDropped, received=$packetsReceived, " +
-                    "dropRate=${dropRate}%, queueSize=${packetQueue.size}, lastPktSize=$packetLength")
+            val reorderRate = if (packetsReceived > 0) {
+                (packetsOutOfOrder * 100 / packetsReceived).toInt()
+            } else 0
+            Log.w(TAG, "Stats: received=$packetsReceived, dropped=$packetsDropped ($dropRate%), " +
+                    "outOfOrder=$packetsOutOfOrder ($reorderRate%), lostDetected=$packetsLostDetected, " +
+                    "queueSize=${packetQueue.size}, sortedSize=${sortedPackets.size}")
             lastStatsTime = now
         }
     }
