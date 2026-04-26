@@ -22,6 +22,7 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.common.util.LibraryLoader;
 import androidx.media3.common.util.Log;
 import androidx.media3.common.util.UnstableApi;
+
 /** Configures and queries the underlying native library. */
 @UnstableApi
 public final class FfmpegLibrary {
@@ -40,7 +41,7 @@ public final class FfmpegLibrary {
         }
       };
 
-  @Nullable private static String version;
+  private static @Nullable String version;
   private static int inputBufferPaddingSize = C.LENGTH_UNSET;
 
   private FfmpegLibrary() {}
@@ -118,10 +119,9 @@ public final class FfmpegLibrary {
       case MimeTypes.AUDIO_AAC:
         return "aac";
       case MimeTypes.AUDIO_MPEG:
-        return "mp3";
       case MimeTypes.AUDIO_MPEG_L1:
       case MimeTypes.AUDIO_MPEG_L2:
-        return "mp2";
+        return "mp3";
       case MimeTypes.AUDIO_AC3:
         return "ac3";
       case MimeTypes.AUDIO_E_AC3:

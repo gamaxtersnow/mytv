@@ -22,7 +22,7 @@
         android:layout_marginBottom="12dp"
         android:gravity="center"/>
 
-    <!-- 播放器类型选择 -->
+    <!-- 播放器类型 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -38,29 +38,13 @@
             android:textSize="14sp"
             android:layout_marginEnd="8dp"/>
 
-        <RadioGroup
-            android:id="@+id/player_type_group"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <RadioButton
-                android:id="@+id/radio_exo_player"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="ExoPlayer"
-                android:textColor="@color/white"
-                android:buttonTint="@color/light_blue"/>
-
-            <RadioButton
-                android:id="@+id/radio_gsy_player"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="GSY播放器"
-                android:textColor="@color/white"
-                android:buttonTint="@color/light_blue"
-                android:layout_marginStart="16dp"/>
-        </RadioGroup>
+            android:text="ExoPlayer"
+            android:textColor="@color/light_blue"
+            android:textSize="14sp"
+            android:textStyle="bold"/>
     </LinearLayout>
 
     <!-- 性能模式选择 -->
