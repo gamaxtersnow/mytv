@@ -49,5 +49,5 @@
         android:layout_width="8dp"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
-        android:background="@drawable/rounded_background2" />
+        android:background="#FF263238" />
 </FrameLayout>
