@@ -30,3 +30,9 @@ roocode-example/
 
 # Compiled native libraries (build from source)
 app/src/main/jniLibs/
+
+# FFmpeg build artifacts, NDK toolchain, and source tree
+# (pre-built android-libs/*.a files are tracked and kept)
+app/src/main/jni/build/
+app/src/main/jni/ffmpeg/
+!app/src/main/jni/ffmpeg/android-libs/
