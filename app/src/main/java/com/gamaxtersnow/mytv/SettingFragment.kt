@@ -21,13 +21,11 @@ class SettingFragment : DialogFragment() {
     private var _binding: SettingBinding? = null
     private val binding get() = _binding!!
 
-    private val navItems by lazy {
-        listOf(binding.navSource, binding.navPlayback, binding.navDisplay, binding.navSystem)
-    }
+    private val navItems: List<View>
+        get() = listOf(binding.navSource, binding.navPlayback, binding.navDisplay, binding.navSystem)
 
-    private val panels by lazy {
-        listOf(binding.panelSource, binding.panelPlayback, binding.panelDisplay, binding.panelSystem)
-    }
+    private val panels: List<View>
+        get() = listOf(binding.panelSource, binding.panelPlayback, binding.panelDisplay, binding.panelSystem)
 
     override fun onStart() {
         super.onStart()
