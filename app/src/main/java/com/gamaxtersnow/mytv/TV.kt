@@ -11,8 +11,7 @@ data class TV(
     var alias: String = "",
     var videoUrl: List<String>,
     var channel: String = "",
-    @Transient
-    var logo: Any = "",
+    var logo: String = "",
     var pid: String = "",
     var sid: String = "",
     var programType: ProgramType = ProgramType.RTP,

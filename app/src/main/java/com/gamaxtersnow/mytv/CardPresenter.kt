@@ -20,6 +20,22 @@ class CardPresenter(
 
         cardView.isFocusable = true
         cardView.isFocusableInTouchMode = true
+
+        // Default state
+        cardView.setBackgroundColor(COLOR_DEFAULT)
+        cardView.setInfoAreaBackgroundColor(COLOR_DEFAULT)
+
+        // Focus highlight: lighter background when selected
+        cardView.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) {
+                cardView.setBackgroundColor(COLOR_FOCUSED)
+                cardView.setInfoAreaBackgroundColor(COLOR_FOCUSED)
+            } else {
+                cardView.setBackgroundColor(COLOR_DEFAULT)
+                cardView.setInfoAreaBackgroundColor(COLOR_DEFAULT)
+            }
+        }
+
         return ViewHolder(cardView)
     }
 
@@ -38,22 +54,7 @@ class CardPresenter(
                 .into(it)
         }
 
-        cardView.setBackgroundColor(Color.WHITE)
         cardView.setMainImageScaleType(ImageView.ScaleType.CENTER_INSIDE)
-
-//        cardView.setOnFocusChangeListener { v, hasFocus ->
-//            run {
-//                if (hasFocus) {
-//                    if (v != null) {
-//                        (v as ImageCardView).setInfoAreaBackgroundColor(context.resources.getColor(R.color.focus))
-//                    }
-//                } else {
-//                    if (v != null) {
-//                        (v as ImageCardView).setInfoAreaBackgroundColor(context.resources.getColor(R.color.ic_launcher_background))
-//                    }
-//                }
-//            }
-//        }
 
         val epg = tvViewModel.epg.value?.filter { it.beginTime < Utils.getDateTimestamp() }
         if (!epg.isNullOrEmpty()) {
@@ -70,7 +71,10 @@ class CardPresenter(
 
     companion object {
         private const val TAG = "CardPresenter"
-        private const val CARD_WIDTH = 300
-        private const val CARD_HEIGHT = 101
+        private const val CARD_WIDTH = 200
+        private const val CARD_HEIGHT = 150
+
+        private val COLOR_DEFAULT = Color.parseColor("#FF263238")
+        private val COLOR_FOCUSED = Color.parseColor("#FF455A64")
     }
 }
