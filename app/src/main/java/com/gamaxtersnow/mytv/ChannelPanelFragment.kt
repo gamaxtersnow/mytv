@@ -1,6 +1,5 @@
 package com.gamaxtersnow.mytv
 
-import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -32,7 +31,6 @@ class ChannelPanelFragment : Fragment() {
     private var selectedGroupIndex = 0
     private var selectedRowIndex = 0
     private var playingId = 0
-    private var isTouchLayout = false
     private var suppressFocusSelection = false
     private val channelAdapter = ChannelAdapter()
 
@@ -47,6 +45,7 @@ class ChannelPanelFragment : Fragment() {
         binding.panelContainer.setOnClickListener { }
         binding.channelList.adapter = channelAdapter
         binding.channelList.layoutManager = LinearLayoutManager(requireContext())
+        configurePanelLayout()
         return binding.root
     }
 
@@ -57,8 +56,6 @@ class ChannelPanelFragment : Fragment() {
             return
         }
 
-        isTouchLayout = isPhoneLikeLayout()
-        configurePanelLayout()
         selectCurrentChannel()
         render(animated = false)
         // 延迟显示面板，确保无动画的 scrollTo 先执行完，避免闪烁
@@ -130,50 +127,25 @@ class ChannelPanelFragment : Fragment() {
         val groupParams = binding.groupContainer.layoutParams as LinearLayout.LayoutParams
         val channelParams = binding.channelList.layoutParams as LinearLayout.LayoutParams
         val groupListParams = binding.groupList.layoutParams
-        val groupTouchListParams = binding.groupTouchList.layoutParams
 
-        if (isTouchLayout) {
-            params.width = ViewGroup.LayoutParams.MATCH_PARENT
-            params.height = (resources.displayMetrics.heightPixels * 0.78f).toInt()
-            params.gravity = android.view.Gravity.BOTTOM
-            binding.panelContent.orientation = LinearLayout.VERTICAL
-            binding.groupVerticalScroll.visibility = View.GONE
-            binding.groupHorizontalScroll.visibility = View.VISIBLE
-            groupParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-            groupParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            channelParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-            channelParams.height = 0
-            channelParams.weight = 1f
-            channelParams.marginStart = 0
-            channelParams.topMargin = dp(16)
-            groupListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
-            groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            groupTouchListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
-            groupTouchListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-        } else {
-            params.width = resources.getDimensionPixelSize(R.dimen.channel_panel_width)
-            params.height = ViewGroup.LayoutParams.MATCH_PARENT
-            params.gravity = android.view.Gravity.START
-            binding.panelContent.orientation = LinearLayout.HORIZONTAL
-            binding.groupVerticalScroll.visibility = View.VISIBLE
-            binding.groupHorizontalScroll.visibility = View.GONE
-            groupParams.width = dp(160)
-            groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-            channelParams.width = 0
-            channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-            channelParams.weight = 1f
-            channelParams.marginStart = dp(18)
-            channelParams.topMargin = 0
-            groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-            groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            groupTouchListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
-            groupTouchListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-        }
+        params.width = resources.getDimensionPixelSize(R.dimen.channel_panel_width)
+        params.height = ViewGroup.LayoutParams.MATCH_PARENT
+        params.gravity = android.view.Gravity.START
+        binding.panelContent.orientation = LinearLayout.HORIZONTAL
+        groupParams.width = dp(160)
+        groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        channelParams.width = 0
+        channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+        channelParams.weight = 1f
+        channelParams.marginStart = dp(18)
+        channelParams.topMargin = 0
+        groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+        groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+
         binding.panelContainer.layoutParams = params
         binding.groupContainer.layoutParams = groupParams
         binding.channelList.layoutParams = channelParams
         binding.groupList.layoutParams = groupListParams
-        binding.groupTouchList.layoutParams = groupTouchListParams
     }
 
     private fun selectCurrentChannel() {
@@ -201,10 +173,8 @@ class ChannelPanelFragment : Fragment() {
 
     private fun renderGroups(animated: Boolean = true) {
         binding.groupList.removeAllViews()
-        binding.groupTouchList.removeAllViews()
         groups.forEachIndexed { index, group ->
             val view = groupTextView(index, group)
-            val touchView = groupTextView(index, group)
 
             binding.groupList.addView(
                 view,
@@ -215,16 +185,6 @@ class ChannelPanelFragment : Fragment() {
                     bottomMargin = dp(8)
                 }
             )
-
-            binding.groupTouchList.addView(
-                touchView,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    marginEnd = dp(8)
-                }
-            )
         }
         scrollSelectedGroupIntoView(animated)
     }
@@ -232,7 +192,7 @@ class ChannelPanelFragment : Fragment() {
     private fun groupTextView(index: Int, group: ChannelPanelGroup): TextView {
         return TextView(requireContext()).apply {
             text = displayGroupTitle(group.title)
-            textSize = if (isTouchLayout) 14f else 16f
+            textSize = 16f
             setSingleLine(true)
             ellipsize = android.text.TextUtils.TruncateAt.END
             setTextColor(groupTextColor(index))
@@ -315,19 +275,26 @@ class ChannelPanelFragment : Fragment() {
     private fun scrollSelectedGroupIntoView(animated: Boolean = true) {
         binding.groupVerticalScroll.post {
             binding.groupList.getChildAt(selectedGroupIndex)?.let { selectedView ->
-                if (animated) {
-                    binding.groupVerticalScroll.smoothScrollTo(0, selectedView.top)
-                } else {
-                    binding.groupVerticalScroll.scrollTo(0, selectedView.top)
+                val scrollView = binding.groupVerticalScroll
+                val scrollY = scrollView.scrollY
+                val scrollHeight = scrollView.height
+                val viewTop = selectedView.top
+                val viewBottom = selectedView.bottom
+
+                if (viewTop >= scrollY && viewBottom <= scrollY + scrollHeight) {
+                    return@let
                 }
-            }
-        }
-        binding.groupHorizontalScroll.post {
-            binding.groupTouchList.getChildAt(selectedGroupIndex)?.let { selectedView ->
+
+                val targetY = when {
+                    viewTop < scrollY -> viewTop
+                    viewBottom > scrollY + scrollHeight -> viewBottom - scrollHeight
+                    else -> scrollY
+                }
+
                 if (animated) {
-                    binding.groupHorizontalScroll.smoothScrollTo(selectedView.left, 0)
+                    scrollView.smoothScrollTo(0, targetY)
                 } else {
-                    binding.groupHorizontalScroll.scrollTo(selectedView.left, 0)
+                    scrollView.scrollTo(0, targetY)
                 }
             }
         }
@@ -368,13 +335,6 @@ class ChannelPanelFragment : Fragment() {
     private fun scheduleAutoHide() {
         handler.removeCallbacks(hideRunnable)
         handler.postDelayed(hideRunnable, AUTO_HIDE_DELAY)
-    }
-
-    private fun isPhoneLikeLayout(): Boolean {
-        val configuration = resources.configuration
-        val uiModeType = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
-        return uiModeType != Configuration.UI_MODE_TYPE_TELEVISION &&
-                configuration.smallestScreenWidthDp < 600
     }
 
     private fun dp(value: Int): Int {
