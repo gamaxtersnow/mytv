@@ -19,6 +19,8 @@ class ChannelFragment : Fragment() {
     private val delay: Long = 3000
     private var channel = 0
     private var channelCount = 0
+    private var xOffset = 0
+    private var yOffset = 0
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -31,8 +33,6 @@ class ChannelFragment : Fragment() {
         val application = activity.applicationContext as MyApplication
         val displayMetrics = application.getDisplayMetrics()
 
-        displayMetrics.density
-
         var screenWidth = displayMetrics.widthPixels
         var screenHeight = displayMetrics.heightPixels
         if (screenHeight > screenWidth) {
@@ -43,23 +43,26 @@ class ChannelFragment : Fragment() {
         val ratio = 16f / 9f
 
         if (screenWidth / screenHeight > ratio) {
-            val x = ((screenWidth - screenHeight * ratio) / 2).toInt()
-            val originalLayoutParams =
-                binding.channelFragment.layoutParams as ViewGroup.MarginLayoutParams
-            originalLayoutParams.rightMargin += x
-            binding.channelFragment.layoutParams = originalLayoutParams
+            xOffset = ((screenWidth - screenHeight * ratio) / 2).toInt()
         }
 
         if (screenWidth / screenHeight < ratio) {
-            val y = ((screenHeight - screenWidth / ratio) / 2).toInt()
-            val originalLayoutParams =
-                binding.channelFragment.layoutParams as ViewGroup.MarginLayoutParams
-            originalLayoutParams.topMargin += y
-            binding.channelFragment.layoutParams = originalLayoutParams
+            yOffset = ((screenHeight - screenWidth / ratio) / 2).toInt()
         }
 
+        updatePosition(SP.time)
         (activity as MainActivity).fragmentReady("ChannelFragment")
         return binding.root
+    }
+
+    fun updatePosition(timeVisible: Boolean) {
+        _binding?.let {
+            val params = it.channelFragment.layoutParams as ViewGroup.MarginLayoutParams
+            val density = resources.displayMetrics.density
+            params.marginEnd = ((if (timeVisible) 170 else 50) * density).toInt() + xOffset
+            params.topMargin = ((if (timeVisible) 20 else 25) * density).toInt() + yOffset
+            it.channelFragment.layoutParams = params
+        }
     }
 
     fun show(tvViewModel: TVViewModel) {

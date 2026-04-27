@@ -255,13 +255,14 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         }
     }
 
-    private fun showTime() {
+    fun showTime() {
         Log.i(TAG, "showTime ${SP.time}")
         if (SP.time) {
             timeFragment.show()
         } else {
             timeFragment.hide()
         }
+        channelFragment.updatePosition(SP.time)
     }
 
     fun isPlaying() {

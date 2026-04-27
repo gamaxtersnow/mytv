@@ -158,6 +158,7 @@ class SettingFragment : DialogFragment() {
             isChecked = SP.time
             setOnCheckedChangeListener { _, isChecked ->
                 SP.time = isChecked
+                (activity as MainActivity).showTime()
                 (activity as MainActivity).settingDelayHide()
             }
         }
