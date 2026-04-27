@@ -34,6 +34,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     val mainFragment = MainFragment()
     private val infoFragment = InfoFragment()
     private val channelFragment = ChannelFragment()
+    private val channelPanelFragment = ChannelPanelFragment()
     private var timeFragment = TimeFragment()
     private val settingFragment = SettingFragment()
     private val errorFragment = ErrorFragment()
@@ -85,6 +86,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
                 .add(R.id.main_browse_fragment, timeFragment)
                 .add(R.id.main_browse_fragment, infoFragment)
                 .add(R.id.main_browse_fragment, channelFragment)
+                .add(R.id.main_browse_fragment, channelPanelFragment)
                 .add(R.id.main_browse_fragment, mainFragment)
                 .hide(mainFragment)
                 .commit()
@@ -130,6 +132,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             withContext(Dispatchers.Main) {
                 TVList.refresh(this@MainActivity)
                 mainFragment.reloadRows()
+                channelPanelFragment.refresh(mainFragment.tvListViewModel)
             }
         }
     }
@@ -150,6 +153,10 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             return
         }
 
+        if (channelPanelFragment.isShowing()) {
+            channelPanelFragment.hide()
+        }
+
         if (SP.channelNum) {
             channelFragment.show(channel)
         }
@@ -161,6 +168,10 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     }
 
     fun play(itemPosition: Int) {
+        mainFragment.play(itemPosition)
+    }
+
+    fun playFromChannelPanel(itemPosition: Int) {
         mainFragment.play(itemPosition)
     }
 
@@ -180,22 +191,23 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 //        mainFragment.nextSource()
     }
 
-    fun switchMainFragment() {
-        val transaction = supportFragmentManager.beginTransaction()
-
-        if (mainFragment.isHidden) {
-            transaction.show(mainFragment)
-            mainActive()
-        } else {
-            transaction.hide(mainFragment)
+    fun toggleChannelPanel() {
+        if (settingFragment.isVisible) {
+            return
         }
 
-        transaction.commit()
+        if (channelPanelFragment.isShowing()) {
+            channelPanelFragment.hide()
+        } else {
+            hideLegacyMainFragment()
+            channelPanelFragment.show(mainFragment.tvListViewModel)
+            showTime()
+        }
     }
 
-    fun mainActive() {
-        handler.removeCallbacks(hideMain)
-        handler.postDelayed(hideMain, delayHideMain)
+    fun scheduleChannelOverlayAutoHide() {
+        handler.removeCallbacks(hideChannelOverlay)
+        handler.postDelayed(hideChannelOverlay, delayHideMain)
     }
 
     fun settingDelayHide() {
@@ -213,17 +225,20 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         handler.removeCallbacks(hideSetting)
     }
 
-    private val hideMain = Runnable {
+    private val hideChannelOverlay = Runnable {
         if (!mainFragment.isHidden) {
             supportFragmentManager.beginTransaction().hide(mainFragment).commit()
         }
+        if (channelPanelFragment.isShowing()) {
+            channelPanelFragment.hide()
+        }
     }
 
-    private fun mainFragmentIsHidden(): Boolean {
+    private fun legacyMainFragmentIsHidden(): Boolean {
         return mainFragment.isHidden
     }
 
-    private fun hideMainFragment() {
+    private fun hideLegacyMainFragment() {
         if (!mainFragment.isHidden) {
             supportFragmentManager.beginTransaction()
                 .hide(mainFragment)
@@ -267,7 +282,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
 
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-            switchMainFragment()
+            toggleChannelPanel()
             return true
         }
 
@@ -282,6 +297,10 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             velocityX: Float,
             velocityY: Float
         ): Boolean {
+            if (channelPanelFragment.isShowing()) {
+                return false
+            }
+
             if (velocityY > 0) {
                 if (mainFragment.isHidden) {
                     prev()
@@ -300,7 +319,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
                 } else {
 //                    if (mainFragment.selectedPosition == mainFragment.tvListViewModel.maxNum.size - 1) {
 ////                        mainFragment.setSelectedPosition(0, false)
-//                        hideMainFragment()
+//                        hideLegacyMainFragment()
 //                        return false
 //                    }
                 }
@@ -312,6 +331,10 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     private fun showSetting() {
         if (!mainFragment.isHidden) {
             return
+        }
+
+        if (channelPanelFragment.isShowing()) {
+            channelPanelFragment.hide()
         }
 
         Log.i(TAG, "settingFragment ${settingFragment.isVisible}")
@@ -357,15 +380,20 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         } else {
 //                    if (mainFragment.selectedPosition == mainFragment.tvListViewModel.maxNum.size - 1) {
 ////                        mainFragment.setSelectedPosition(0, false)
-//                        hideMainFragment()
+//                        hideLegacyMainFragment()
 //                        return false
 //                    }
         }
     }
 
     private fun back() {
-        if (!mainFragmentIsHidden()) {
-            hideMainFragment()
+        if (!legacyMainFragmentIsHidden()) {
+            hideLegacyMainFragment()
+            return
+        }
+
+        if (channelPanelFragment.isShowing()) {
+            channelPanelFragment.hide()
             return
         }
 
@@ -384,6 +412,10 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         Log.i(TAG, "keyCode $keyCode, event $event")
+        if (channelPanelFragment.handleKeyDown(keyCode)) {
+            return true
+        }
+
         when (keyCode) {
             KeyEvent.KEYCODE_0 -> {
                 showChannel("0")
@@ -471,11 +503,11 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             }
 
             KeyEvent.KEYCODE_ENTER -> {
-                switchMainFragment()
+                toggleChannelPanel()
             }
 
             KeyEvent.KEYCODE_DPAD_CENTER -> {
-                switchMainFragment()
+                toggleChannelPanel()
             }
 
             KeyEvent.KEYCODE_DPAD_UP -> {
@@ -496,7 +528,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
             KeyEvent.KEYCODE_DPAD_LEFT -> {
                 if (!mainFragment.isVisible && !settingFragment.isVisible) {
-                    switchMainFragment()
+                    toggleChannelPanel()
                     return true
                 }
             }
@@ -523,14 +555,14 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         Log.i(TAG, "onResume")
         super.onResume()
         if (!mainFragment.isHidden) {
-            handler.postDelayed(hideMain, delayHideMain)
+            handler.postDelayed(hideChannelOverlay, delayHideMain)
         }
     }
 
     override fun onPause() {
         Log.i(TAG, "onPause")
         super.onPause()
-        handler.removeCallbacks(hideMain)
+        handler.removeCallbacks(hideChannelOverlay)
     }
 
     override fun onDestroy() {

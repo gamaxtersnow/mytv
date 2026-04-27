@@ -34,4 +34,13 @@
     <color name="yellow">#FFEB3B</color>
     <color name="dark_gray">#424242</color>
     <color name="green">#4CAF50</color>
+
+    <!-- IPTV channel panel -->
+    <color name="channel_panel_background">#E612171A</color>
+    <color name="channel_panel_focus">#FF006C7A</color>
+    <color name="channel_panel_playing_background">#3326C6DA</color>
+    <color name="channel_panel_accent">#FF26C6DA</color>
+    <color name="channel_panel_text_primary">#FFF4F7F8</color>
+    <color name="channel_panel_text_secondary">#B8F4F7F8</color>
+    <color name="channel_panel_text_selected">#FFFFFFFF</color>
 </resources>

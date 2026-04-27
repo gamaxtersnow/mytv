@@ -1,0 +1,490 @@
+package com.gamaxtersnow.mytv
+
+import android.content.res.Configuration
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.KeyEvent
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.FrameLayout
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.gamaxtersnow.mytv.databinding.ChannelPanelBinding
+import com.gamaxtersnow.mytv.databinding.ChannelPanelRowBinding
+import com.gamaxtersnow.mytv.models.ChannelPanelGroup
+import com.gamaxtersnow.mytv.models.ChannelPanelRow
+import com.gamaxtersnow.mytv.models.TVListViewModel
+
+class ChannelPanelFragment : Fragment() {
+    private var _binding: ChannelPanelBinding? = null
+    private val binding get() = _binding!!
+
+    private val handler = Handler(Looper.getMainLooper())
+    private var groups: List<ChannelPanelGroup> = emptyList()
+    private var selectedGroupIndex = 0
+    private var selectedRowIndex = 0
+    private var playingId = 0
+    private var isTouchLayout = false
+    private val channelAdapter = ChannelAdapter()
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = ChannelPanelBinding.inflate(inflater, container, false)
+        binding.root.visibility = View.GONE
+        binding.root.setOnClickListener { hide() }
+        binding.panelContainer.setOnClickListener { }
+        binding.channelList.adapter = channelAdapter
+        binding.channelList.layoutManager = LinearLayoutManager(requireContext())
+        return binding.root
+    }
+
+    fun show(tvListViewModel: TVListViewModel) {
+        playingId = tvListViewModel.itemPosition.value ?: 0
+        groups = tvListViewModel.channelPanelGroups(playingId)
+        if (groups.isEmpty()) {
+            return
+        }
+
+        isTouchLayout = isPhoneLikeLayout()
+        configurePanelLayout()
+        selectCurrentChannel()
+        render()
+        binding.root.visibility = View.VISIBLE
+        scheduleAutoHide()
+    }
+
+    fun hide() {
+        handler.removeCallbacks(hideRunnable)
+        _binding?.root?.visibility = View.GONE
+    }
+
+    fun isShowing(): Boolean {
+        return _binding?.root?.visibility == View.VISIBLE
+    }
+
+    fun refresh(tvListViewModel: TVListViewModel) {
+        if (!isShowing()) {
+            return
+        }
+        show(tvListViewModel)
+    }
+
+    fun handleKeyDown(keyCode: Int): Boolean {
+        if (!isShowing()) {
+            return false
+        }
+
+        scheduleAutoHide()
+        return when (keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP -> {
+                moveRow(-1)
+                true
+            }
+
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN -> {
+                moveRow(1)
+                true
+            }
+
+            KeyEvent.KEYCODE_DPAD_LEFT -> {
+                moveGroup(-1)
+                true
+            }
+
+            KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                moveGroup(1)
+                true
+            }
+
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                playSelected()
+                true
+            }
+
+            KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                hide()
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    private fun configurePanelLayout() {
+        val params = binding.panelContainer.layoutParams as FrameLayout.LayoutParams
+        val groupParams = binding.groupContainer.layoutParams as LinearLayout.LayoutParams
+        val channelParams = binding.channelList.layoutParams as LinearLayout.LayoutParams
+        val groupListParams = binding.groupList.layoutParams
+        val groupTouchListParams = binding.groupTouchList.layoutParams
+
+        if (isTouchLayout) {
+            params.width = ViewGroup.LayoutParams.MATCH_PARENT
+            params.height = (resources.displayMetrics.heightPixels * 0.78f).toInt()
+            params.gravity = android.view.Gravity.BOTTOM
+            binding.panelContent.orientation = LinearLayout.VERTICAL
+            binding.groupVerticalScroll.visibility = View.GONE
+            binding.groupHorizontalScroll.visibility = View.VISIBLE
+            groupParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+            groupParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            channelParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+            channelParams.height = 0
+            channelParams.weight = 1f
+            channelParams.marginStart = 0
+            channelParams.topMargin = dp(16)
+            groupListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
+            groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            groupTouchListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
+            groupTouchListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+        } else {
+            params.width = resources.getDimensionPixelSize(R.dimen.channel_panel_width)
+            params.height = ViewGroup.LayoutParams.MATCH_PARENT
+            params.gravity = android.view.Gravity.START
+            binding.panelContent.orientation = LinearLayout.HORIZONTAL
+            binding.groupVerticalScroll.visibility = View.VISIBLE
+            binding.groupHorizontalScroll.visibility = View.GONE
+            groupParams.width = dp(160)
+            groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            channelParams.width = 0
+            channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            channelParams.weight = 1f
+            channelParams.marginStart = dp(18)
+            channelParams.topMargin = 0
+            groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+            groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            groupTouchListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
+            groupTouchListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        binding.panelContainer.layoutParams = params
+        binding.groupContainer.layoutParams = groupParams
+        binding.channelList.layoutParams = channelParams
+        binding.groupList.layoutParams = groupListParams
+        binding.groupTouchList.layoutParams = groupTouchListParams
+    }
+
+    private fun selectCurrentChannel() {
+        selectedGroupIndex = groups.indexOfFirst { group ->
+            group.rows.any { it.id == playingId }
+        }.takeIf { it >= 0 } ?: 0
+
+        selectedRowIndex = groups.getOrNull(selectedGroupIndex)
+            ?.rows
+            ?.indexOfFirst { it.id == playingId }
+            ?.takeIf { it >= 0 }
+            ?: 0
+    }
+
+    private fun render() {
+        renderGroups()
+        renderRows()
+    }
+
+    private fun renderGroups() {
+        binding.groupList.removeAllViews()
+        binding.groupTouchList.removeAllViews()
+        groups.forEachIndexed { index, group ->
+            val view = groupTextView(index, group)
+            val touchView = groupTextView(index, group)
+
+            binding.groupList.addView(
+                view,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    bottomMargin = dp(8)
+                }
+            )
+
+            binding.groupTouchList.addView(
+                touchView,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    marginEnd = dp(8)
+                }
+            )
+        }
+        scrollSelectedGroupIntoView()
+    }
+
+    private fun groupTextView(index: Int, group: ChannelPanelGroup): TextView {
+        return TextView(requireContext()).apply {
+            text = displayGroupTitle(group.title)
+            textSize = if (isTouchLayout) 14f else 16f
+            setSingleLine(true)
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setTextColor(groupTextColor(index))
+            setBackgroundResource(
+                if (index == selectedGroupIndex) {
+                    R.drawable.channel_panel_group_selected
+                } else {
+                    R.drawable.channel_panel_item_transparent
+                }
+            )
+            setPadding(dp(14), dp(10), dp(14), dp(10))
+            isFocusable = true
+            setOnClickListener {
+                selectedGroupIndex = index
+                selectedRowIndex = 0
+                render()
+                scheduleAutoHide()
+            }
+        }
+    }
+
+    private fun renderRows() {
+        channelAdapter.submitRows(currentRows(), selectedRowIndex)
+        scrollSelectedRowIntoView()
+    }
+
+    private fun moveGroup(delta: Int) {
+        if (groups.isEmpty()) {
+            return
+        }
+        selectedGroupIndex = (selectedGroupIndex + delta + groups.size) % groups.size
+        selectedRowIndex = currentRows().indexOfFirst { it.id == playingId }
+            .takeIf { it >= 0 }
+            ?: 0
+        render()
+    }
+
+    private fun moveRow(delta: Int) {
+        val rows = currentRows()
+        if (rows.isEmpty()) {
+            return
+        }
+        val oldIndex = selectedRowIndex
+        selectedRowIndex = (selectedRowIndex + delta + rows.size) % rows.size
+        channelAdapter.updateSelection(oldIndex, selectedRowIndex)
+        applySelectionToVisibleRow(oldIndex)
+        applySelectionToVisibleRow(selectedRowIndex)
+        scrollSelectedRowIntoView()
+    }
+
+    private fun playSelected() {
+        val row = currentRows().getOrNull(selectedRowIndex) ?: return
+        (activity as? MainActivity)?.playFromChannelPanel(row.id)
+        hide()
+    }
+
+    private fun currentRows(): List<ChannelPanelRow> {
+        return groups.getOrNull(selectedGroupIndex)?.rows.orEmpty()
+    }
+
+    private fun applySelectionToVisibleRow(index: Int) {
+        val holder = binding.channelList.findViewHolderForAdapterPosition(index)
+                as? ChannelAdapter.ChannelViewHolder
+        holder?.applySelection(index == selectedRowIndex)
+    }
+
+    private fun scrollSelectedRowIntoView() {
+        binding.channelList.post {
+            binding.channelList.smoothScrollToPosition(selectedRowIndex)
+        }
+    }
+
+    private fun scrollSelectedGroupIntoView() {
+        binding.groupVerticalScroll.post {
+            binding.groupList.getChildAt(selectedGroupIndex)?.let { selectedView ->
+                binding.groupVerticalScroll.smoothScrollTo(0, selectedView.top)
+            }
+        }
+        binding.groupHorizontalScroll.post {
+            binding.groupTouchList.getChildAt(selectedGroupIndex)?.let { selectedView ->
+                binding.groupHorizontalScroll.smoothScrollTo(selectedView.left, 0)
+            }
+        }
+    }
+
+    private fun rowBackground(row: ChannelPanelRow, isSelected: Boolean): Int {
+        return when {
+            isSelected -> R.drawable.channel_panel_row_selected
+            row.isPlaying -> R.drawable.channel_panel_row_playing
+            else -> R.drawable.channel_panel_item_transparent
+        }
+    }
+
+    private fun rowTitleColor(row: ChannelPanelRow, isSelected: Boolean): Int {
+        return when {
+            isSelected -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
+            row.isPlaying -> ContextCompat.getColor(requireContext(), R.color.channel_panel_accent)
+            else -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_primary)
+        }
+    }
+
+    private fun rowMetaColor(row: ChannelPanelRow, isSelected: Boolean): Int {
+        return when {
+            isSelected -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
+            row.isPlaying -> ContextCompat.getColor(requireContext(), R.color.channel_panel_accent)
+            else -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_secondary)
+        }
+    }
+
+    private fun groupTextColor(index: Int): Int {
+        return if (index == selectedGroupIndex) {
+            ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
+        } else {
+            ContextCompat.getColor(requireContext(), R.color.channel_panel_text_secondary)
+        }
+    }
+
+    private fun scheduleAutoHide() {
+        handler.removeCallbacks(hideRunnable)
+        handler.postDelayed(hideRunnable, AUTO_HIDE_DELAY)
+    }
+
+    private fun isPhoneLikeLayout(): Boolean {
+        val configuration = resources.configuration
+        val uiModeType = configuration.uiMode and Configuration.UI_MODE_TYPE_MASK
+        return uiModeType != Configuration.UI_MODE_TYPE_TELEVISION &&
+                configuration.smallestScreenWidthDp < 600
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
+
+    private fun displayGroupTitle(title: String): String {
+        return when (title) {
+            TVListViewModel.ALL_GROUP_KEY -> getString(R.string.channel_panel_group_all)
+            TVListViewModel.FALLBACK_GROUP_KEY -> getString(R.string.channel_panel_group_custom)
+            else -> title
+        }
+    }
+
+    private val hideRunnable = Runnable {
+        hide()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        handler.removeCallbacks(hideRunnable)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isShowing()) {
+            scheduleAutoHide()
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        handler.removeCallbacks(hideRunnable)
+        _binding = null
+    }
+
+    companion object {
+        private const val AUTO_HIDE_DELAY = 10000L
+    }
+
+    private inner class ChannelAdapter : RecyclerView.Adapter<ChannelAdapter.ChannelViewHolder>() {
+        private var rows: List<ChannelPanelRow> = emptyList()
+        private var selectedIndex = 0
+
+        fun submitRows(rows: List<ChannelPanelRow>, selectedIndex: Int) {
+            this.rows = rows
+            this.selectedIndex = selectedIndex
+            notifyDataSetChanged()
+        }
+
+        fun updateSelection(oldIndex: Int, newIndex: Int) {
+            selectedIndex = newIndex
+            if (binding.channelList.findViewHolderForAdapterPosition(oldIndex) == null) {
+                notifyItemChanged(oldIndex)
+            }
+            if (binding.channelList.findViewHolderForAdapterPosition(newIndex) == null) {
+                notifyItemChanged(newIndex)
+            }
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChannelViewHolder {
+            val rowBinding = ChannelPanelRowBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false
+            )
+            return ChannelViewHolder(rowBinding)
+        }
+
+        override fun onBindViewHolder(holder: ChannelViewHolder, position: Int) {
+            holder.bind(rows[position], position == selectedIndex)
+        }
+
+        override fun getItemCount(): Int {
+            return rows.size
+        }
+
+        inner class ChannelViewHolder(
+            private val rowBinding: ChannelPanelRowBinding
+        ) : RecyclerView.ViewHolder(rowBinding.root) {
+            private var row: ChannelPanelRow? = null
+
+            init {
+                rowBinding.root.setOnClickListener {
+                    selectedRowIndex = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
+                        ?: return@setOnClickListener
+                    playSelected()
+                }
+                rowBinding.root.setOnFocusChangeListener { _, hasFocus ->
+                    if (hasFocus) {
+                        val position = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
+                            ?: return@setOnFocusChangeListener
+                        val oldIndex = selectedRowIndex
+                        selectedRowIndex = position
+                        updateSelection(oldIndex, selectedRowIndex)
+                        applySelectionToVisibleRow(oldIndex)
+                        applySelectionToVisibleRow(selectedRowIndex)
+                        scheduleAutoHide()
+                    }
+                }
+            }
+
+            fun bind(row: ChannelPanelRow, isSelected: Boolean) {
+                this.row = row
+                rowBinding.channelNumber.text = row.displayNumber
+                rowBinding.channelTitle.text = row.title
+                rowBinding.channelProgram.text = row.currentProgram
+                rowBinding.channelProgram.visibility =
+                    if (row.currentProgram.isBlank()) View.GONE else View.VISIBLE
+                rowBinding.playingMarker.visibility =
+                    if (row.isPlaying) View.VISIBLE else View.INVISIBLE
+                applySelection(isSelected)
+                loadLogo(rowBinding.channelLogo, row.logo)
+            }
+
+            fun applySelection(isSelected: Boolean) {
+                val currentRow = row ?: return
+                rowBinding.root.setBackgroundResource(rowBackground(currentRow, isSelected))
+                rowBinding.channelTitle.setTextColor(rowTitleColor(currentRow, isSelected))
+                rowBinding.channelNumber.setTextColor(rowMetaColor(currentRow, isSelected))
+                rowBinding.channelProgram.setTextColor(rowMetaColor(currentRow, isSelected))
+            }
+
+            private fun loadLogo(imageView: ImageView, logo: String) {
+                if (logo.isBlank()) {
+                    imageView.setImageResource(R.drawable.logo)
+                    return
+                }
+
+                Glide.with(imageView.context)
+                    .load(logo)
+                    .centerInside()
+                    .placeholder(R.drawable.logo)
+                    .into(imageView)
+            }
+        }
+    }
+}

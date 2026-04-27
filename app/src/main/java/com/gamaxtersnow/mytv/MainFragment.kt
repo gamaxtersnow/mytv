@@ -244,7 +244,7 @@ class MainFragment : BrowseSupportFragment() {
                     tvListViewModel.setItemPosition(itemPosition)
                     tvListViewModel.getTVViewModel(itemPosition)?.changed()
                 }
-                (activity as? MainActivity)?.switchMainFragment()
+                (activity as? MainActivity)?.toggleChannelPanel()
             }
         }
     }
@@ -256,7 +256,7 @@ class MainFragment : BrowseSupportFragment() {
         ) {
             if (item is TVViewModel) {
                 tvListViewModel.setItemPositionCurrent(item.getTV().id)
-                (activity as MainActivity).mainActive()
+                (activity as MainActivity).scheduleChannelOverlayAutoHide()
             }
         }
     }

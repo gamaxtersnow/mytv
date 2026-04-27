@@ -26,6 +26,8 @@ class TVViewModel(private var tv: TV) : ViewModel() {
     private var _epg = MutableLiveData<MutableList<EPG>>()
     val epg: LiveData<MutableList<EPG>>
         get() = _epg
+    var epgVersion: Int = 0
+        private set
 
     private val _videoUrl = MutableLiveData<List<String>>()
     val videoUrl: LiveData<List<String>>
@@ -121,6 +123,7 @@ class TVViewModel(private var tv: TV) : ViewModel() {
 
     fun addFEPG(p: List<FEPG>) {
         _epg.value = p.map { EPG(it.title, formatFTime(it.event_time)) }.toMutableList()
+        epgVersion += 1
     }
 
     fun getVideoUrlCurrent(): String {

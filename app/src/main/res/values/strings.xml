@@ -7,4 +7,8 @@
     <string name="dismiss_error">好的</string>
     <string name="title_time">显示时间</string>
     <string name="exit">退出</string>
+    <string name="channel_panel_logo">频道台标</string>
+    <string name="channel_panel_playing">正在播放</string>
+    <string name="channel_panel_group_all">全部</string>
+    <string name="channel_panel_group_custom">自定义</string>
 </resources>
