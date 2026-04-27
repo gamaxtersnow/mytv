@@ -33,6 +33,7 @@ class ChannelPanelFragment : Fragment() {
     private var selectedRowIndex = 0
     private var playingId = 0
     private var isTouchLayout = false
+    private var suppressFocusSelection = false
     private val channelAdapter = ChannelAdapter()
 
     override fun onCreateView(
@@ -59,9 +60,12 @@ class ChannelPanelFragment : Fragment() {
         isTouchLayout = isPhoneLikeLayout()
         configurePanelLayout()
         selectCurrentChannel()
-        render()
-        binding.root.visibility = View.VISIBLE
-        scheduleAutoHide()
+        render(animated = false)
+        // 延迟显示面板，确保无动画的 scrollTo 先执行完，避免闪烁
+        binding.root.post {
+            binding.root.visibility = View.VISIBLE
+            scheduleAutoHide()
+        }
     }
 
     fun hide() {
@@ -173,23 +177,29 @@ class ChannelPanelFragment : Fragment() {
     }
 
     private fun selectCurrentChannel() {
-        selectedGroupIndex = groups.indexOfFirst { group ->
-            group.rows.any { it.id == playingId }
-        }.takeIf { it >= 0 } ?: 0
+        // 跳过”全部”分组（索引0），优先定位到当前播放电视台所在的分类
+        selectedGroupIndex = groups
+            .drop(1)
+            .indexOfFirst { group -> group.rows.any { it.isPlaying } }
+            .takeIf { it >= 0 }
+            ?.plus(1)
+            ?: 0
 
         selectedRowIndex = groups.getOrNull(selectedGroupIndex)
             ?.rows
-            ?.indexOfFirst { it.id == playingId }
+            ?.indexOfFirst { it.isPlaying }
             ?.takeIf { it >= 0 }
             ?: 0
     }
 
-    private fun render() {
-        renderGroups()
-        renderRows()
+    private fun render(animated: Boolean = true) {
+        suppressFocusSelection = true
+        renderGroups(animated)
+        renderRows(animated)
+        suppressFocusSelection = false
     }
 
-    private fun renderGroups() {
+    private fun renderGroups(animated: Boolean = true) {
         binding.groupList.removeAllViews()
         binding.groupTouchList.removeAllViews()
         groups.forEachIndexed { index, group ->
@@ -216,7 +226,7 @@ class ChannelPanelFragment : Fragment() {
                 }
             )
         }
-        scrollSelectedGroupIntoView()
+        scrollSelectedGroupIntoView(animated)
     }
 
     private fun groupTextView(index: Int, group: ChannelPanelGroup): TextView {
@@ -237,16 +247,18 @@ class ChannelPanelFragment : Fragment() {
             isFocusable = true
             setOnClickListener {
                 selectedGroupIndex = index
-                selectedRowIndex = 0
-                render()
+                selectedRowIndex = group.rows.indexOfFirst { it.isPlaying }
+                    .takeIf { it >= 0 }
+                    ?: 0
+                render(animated = false)
                 scheduleAutoHide()
             }
         }
     }
 
-    private fun renderRows() {
+    private fun renderRows(animated: Boolean = true) {
         channelAdapter.submitRows(currentRows(), selectedRowIndex)
-        scrollSelectedRowIntoView()
+        scrollSelectedRowIntoView(animated)
     }
 
     private fun moveGroup(delta: Int) {
@@ -254,10 +266,10 @@ class ChannelPanelFragment : Fragment() {
             return
         }
         selectedGroupIndex = (selectedGroupIndex + delta + groups.size) % groups.size
-        selectedRowIndex = currentRows().indexOfFirst { it.id == playingId }
+        selectedRowIndex = currentRows().indexOfFirst { it.isPlaying }
             .takeIf { it >= 0 }
             ?: 0
-        render()
+        render(animated = false)
     }
 
     private fun moveRow(delta: Int) {
@@ -289,21 +301,34 @@ class ChannelPanelFragment : Fragment() {
         holder?.applySelection(index == selectedRowIndex)
     }
 
-    private fun scrollSelectedRowIntoView() {
-        binding.channelList.post {
-            binding.channelList.smoothScrollToPosition(selectedRowIndex)
+    private fun scrollSelectedRowIntoView(animated: Boolean = true) {
+        if (animated) {
+            binding.channelList.post {
+                binding.channelList.smoothScrollToPosition(selectedRowIndex)
+            }
+        } else {
+            (binding.channelList.layoutManager as? LinearLayoutManager)
+                ?.scrollToPositionWithOffset(selectedRowIndex, 0)
         }
     }
 
-    private fun scrollSelectedGroupIntoView() {
+    private fun scrollSelectedGroupIntoView(animated: Boolean = true) {
         binding.groupVerticalScroll.post {
             binding.groupList.getChildAt(selectedGroupIndex)?.let { selectedView ->
-                binding.groupVerticalScroll.smoothScrollTo(0, selectedView.top)
+                if (animated) {
+                    binding.groupVerticalScroll.smoothScrollTo(0, selectedView.top)
+                } else {
+                    binding.groupVerticalScroll.scrollTo(0, selectedView.top)
+                }
             }
         }
         binding.groupHorizontalScroll.post {
             binding.groupTouchList.getChildAt(selectedGroupIndex)?.let { selectedView ->
-                binding.groupHorizontalScroll.smoothScrollTo(selectedView.left, 0)
+                if (animated) {
+                    binding.groupHorizontalScroll.smoothScrollTo(selectedView.left, 0)
+                } else {
+                    binding.groupHorizontalScroll.scrollTo(selectedView.left, 0)
+                }
             }
         }
     }
@@ -439,7 +464,7 @@ class ChannelPanelFragment : Fragment() {
                     playSelected()
                 }
                 rowBinding.root.setOnFocusChangeListener { _, hasFocus ->
-                    if (hasFocus) {
+                    if (hasFocus && !suppressFocusSelection) {
                         val position = bindingAdapterPosition.takeIf { it != RecyclerView.NO_POSITION }
                             ?: return@setOnFocusChangeListener
                         val oldIndex = selectedRowIndex

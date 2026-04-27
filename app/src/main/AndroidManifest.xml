@@ -32,7 +32,8 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:keepScreenOn="true">
+            android:keepScreenOn="true"
+            android:screenOrientation="landscape">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
