@@ -1,38 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_root"
     android:layout_width="match_parent"
-    android:layout_height="64dp"
-    android:layout_marginBottom="6dp"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
     android:clickable="true"
     android:focusable="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp">
+    android:paddingStart="14dp"
+    android:paddingEnd="14dp">
 
     <TextView
         android:id="@+id/channel_number"
-        android:layout_width="48dp"
-        android:layout_height="38dp"
+        android:layout_width="42dp"
+        android:layout_height="wrap_content"
         android:fontFamily="monospace"
         android:gravity="center"
         android:singleLine="true"
         android:textColor="@color/channel_panel_text_secondary"
-        android:textSize="15sp"
+        android:textSize="16sp"
         android:textStyle="bold" />
 
-    <ImageView
-        android:id="@+id/channel_logo"
-        android:layout_width="38dp"
-        android:layout_height="38dp"
-        android:layout_marginStart="10dp"
-        android:contentDescription="@string/channel_panel_logo"
-        android:scaleType="centerInside" />
-
     <LinearLayout
+        android:id="@+id/channel_text_group"
         android:layout_width="0dp"
-        android:layout_height="38dp"
-        android:layout_marginStart="12dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="vertical">
@@ -44,28 +38,57 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:textColor="@color/channel_panel_text_primary"
-            android:textSize="17sp"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/channel_program"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
+            android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:singleLine="true"
             android:textColor="@color/channel_panel_text_secondary"
-            android:textSize="13sp" />
+            android:textSize="14sp"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/progress_container"
+            android:layout_width="match_parent"
+            android:layout_height="5dp"
+            android:layout_marginTop="7dp"
+            android:background="#33FFFFFF"
+            android:visibility="gone">
+
+            <View
+                android:id="@+id/progress_bar"
+                android:layout_width="120dp"
+                android:layout_height="match_parent"
+                android:background="@color/channel_panel_accent" />
+        </FrameLayout>
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/channel_next"
+        android:layout_width="96dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:ellipsize="end"
+        android:gravity="end"
+        android:lineSpacingMultiplier="1.05"
+        android:maxLines="2"
+        android:textColor="@color/channel_panel_text_secondary"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/playing_marker"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
         android:layout_marginStart="10dp"
         android:text="@string/channel_panel_playing"
         android:textColor="@color/channel_panel_accent"
         android:textSize="13sp"
-        android:textStyle="bold" />
+        android:textStyle="bold"
+        android:visibility="invisible" />
 </LinearLayout>

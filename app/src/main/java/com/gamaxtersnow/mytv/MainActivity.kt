@@ -205,6 +205,20 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         }
     }
 
+    fun toggleEpgPanel() {
+        if (settingFragment.isVisible) {
+            return
+        }
+
+        if (channelPanelFragment.isShowing()) {
+            channelPanelFragment.hide()
+        } else {
+            hideLegacyMainFragment()
+            channelPanelFragment.showEpg(mainFragment.tvListViewModel)
+            showTime()
+        }
+    }
+
     fun scheduleChannelOverlayAutoHide() {
         handler.removeCallbacks(hideChannelOverlay)
         handler.postDelayed(hideChannelOverlay, delayHideMain)
@@ -212,7 +226,6 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
 
     fun settingDelayHide() {
         handler.removeCallbacks(hideSetting)
-        handler.postDelayed(hideSetting, delayHideSetting)
         showTime()
     }
 
@@ -329,7 +342,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         }
     }
 
-    private fun showSetting() {
+    fun showSetting() {
         if (!mainFragment.isHidden) {
             return
         }

@@ -7,15 +7,13 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.gamaxtersnow.mytv.databinding.ChannelPanelBinding
 import com.gamaxtersnow.mytv.databinding.ChannelPanelRowBinding
 import com.gamaxtersnow.mytv.models.ChannelPanelGroup
@@ -27,12 +25,12 @@ class ChannelPanelFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val handler = Handler(Looper.getMainLooper())
+    private val channelAdapter = ChannelAdapter()
     private var groups: List<ChannelPanelGroup> = emptyList()
     private var selectedGroupIndex = 0
     private var selectedRowIndex = 0
-    private var playingId = 0
+    private var panelMode = PanelMode.PLAYLIST
     private var suppressFocusSelection = false
-    private val channelAdapter = ChannelAdapter()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -45,20 +43,28 @@ class ChannelPanelFragment : Fragment() {
         binding.panelContainer.setOnClickListener { }
         binding.channelList.adapter = channelAdapter
         binding.channelList.layoutManager = LinearLayoutManager(requireContext())
-        configurePanelLayout()
         return binding.root
     }
 
     fun show(tvListViewModel: TVListViewModel) {
-        playingId = tvListViewModel.itemPosition.value ?: 0
-        groups = tvListViewModel.channelPanelGroups(playingId)
+        show(tvListViewModel, PanelMode.PLAYLIST)
+    }
+
+    fun showEpg(tvListViewModel: TVListViewModel) {
+        show(tvListViewModel, PanelMode.EPG)
+    }
+
+    private fun show(tvListViewModel: TVListViewModel, mode: PanelMode) {
+        panelMode = mode
+        groups = tvListViewModel.channelPanelGroups(tvListViewModel.itemPosition.value ?: 0)
         if (groups.isEmpty()) {
             return
         }
 
         selectCurrentChannel()
         render(animated = false)
-        // 延迟显示面板，确保无动画的 scrollTo 先执行完，避免闪烁
+        updateModeChrome()
+        updateEpgDetail()
         binding.root.post {
             binding.root.visibility = View.VISIBLE
             scheduleAutoHide()
@@ -75,10 +81,9 @@ class ChannelPanelFragment : Fragment() {
     }
 
     fun refresh(tvListViewModel: TVListViewModel) {
-        if (!isShowing()) {
-            return
+        if (isShowing()) {
+            show(tvListViewModel, panelMode)
         }
-        show(tvListViewModel)
     }
 
     fun handleKeyDown(keyCode: Int): Boolean {
@@ -122,34 +127,7 @@ class ChannelPanelFragment : Fragment() {
         }
     }
 
-    private fun configurePanelLayout() {
-        val params = binding.panelContainer.layoutParams as FrameLayout.LayoutParams
-        val groupParams = binding.groupContainer.layoutParams as LinearLayout.LayoutParams
-        val channelParams = binding.channelList.layoutParams as LinearLayout.LayoutParams
-        val groupListParams = binding.groupList.layoutParams
-
-        params.width = resources.getDimensionPixelSize(R.dimen.channel_panel_width)
-        params.height = ViewGroup.LayoutParams.MATCH_PARENT
-        params.gravity = android.view.Gravity.START
-        binding.panelContent.orientation = LinearLayout.HORIZONTAL
-        groupParams.width = dp(160)
-        groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-        channelParams.width = 0
-        channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-        channelParams.weight = 1f
-        channelParams.marginStart = dp(18)
-        channelParams.topMargin = 0
-        groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-        groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-
-        binding.panelContainer.layoutParams = params
-        binding.groupContainer.layoutParams = groupParams
-        binding.channelList.layoutParams = channelParams
-        binding.groupList.layoutParams = groupListParams
-    }
-
     private fun selectCurrentChannel() {
-        // 跳过”全部”分组（索引0），优先定位到当前播放电视台所在的分类
         selectedGroupIndex = groups
             .drop(1)
             .indexOfFirst { group -> group.rows.any { it.isPlaying } }
@@ -174,15 +152,13 @@ class ChannelPanelFragment : Fragment() {
     private fun renderGroups(animated: Boolean = true) {
         binding.groupList.removeAllViews()
         groups.forEachIndexed { index, group ->
-            val view = groupTextView(index, group)
-
             binding.groupList.addView(
-                view,
+                groupTextView(index, group),
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
+                    dp(46)
                 ).apply {
-                    bottomMargin = dp(8)
+                    bottomMargin = dp(10)
                 }
             )
         }
@@ -193,8 +169,10 @@ class ChannelPanelFragment : Fragment() {
         return TextView(requireContext()).apply {
             text = displayGroupTitle(group.title)
             textSize = 16f
+            gravity = android.view.Gravity.CENTER_VERTICAL
             setSingleLine(true)
             ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(dp(12), 0, dp(12), 0)
             setTextColor(groupTextColor(index))
             setBackgroundResource(
                 if (index == selectedGroupIndex) {
@@ -203,7 +181,6 @@ class ChannelPanelFragment : Fragment() {
                     R.drawable.channel_panel_item_transparent
                 }
             )
-            setPadding(dp(14), dp(10), dp(14), dp(10))
             isFocusable = true
             setOnClickListener {
                 selectedGroupIndex = index
@@ -211,6 +188,7 @@ class ChannelPanelFragment : Fragment() {
                     .takeIf { it >= 0 }
                     ?: 0
                 render(animated = false)
+                updateEpgDetail()
                 scheduleAutoHide()
             }
         }
@@ -230,6 +208,7 @@ class ChannelPanelFragment : Fragment() {
             .takeIf { it >= 0 }
             ?: 0
         render(animated = false)
+        updateEpgDetail()
     }
 
     private fun moveRow(delta: Int) {
@@ -242,6 +221,7 @@ class ChannelPanelFragment : Fragment() {
         channelAdapter.updateSelection(oldIndex, selectedRowIndex)
         applySelectionToVisibleRow(oldIndex)
         applySelectionToVisibleRow(selectedRowIndex)
+        updateEpgDetail()
         scrollSelectedRowIntoView()
     }
 
@@ -263,9 +243,7 @@ class ChannelPanelFragment : Fragment() {
 
     private fun scrollSelectedRowIntoView(animated: Boolean = true) {
         if (animated) {
-            binding.channelList.post {
-                binding.channelList.smoothScrollToPosition(selectedRowIndex)
-            }
+            binding.channelList.post { binding.channelList.smoothScrollToPosition(selectedRowIndex) }
         } else {
             (binding.channelList.layoutManager as? LinearLayoutManager)
                 ?.scrollToPositionWithOffset(selectedRowIndex, 0)
@@ -300,6 +278,62 @@ class ChannelPanelFragment : Fragment() {
         }
     }
 
+    private fun updateModeChrome() {
+        val channelCount = groups.firstOrNull()?.rows?.size ?: 0
+        val matchedCount = groups.firstOrNull()?.rows.orEmpty().count { it.currentProgram.isNotBlank() }
+        if (panelMode == PanelMode.PLAYLIST) {
+            binding.panelTitle.text = "频道"
+            binding.panelSubtitle.text = "全部 ${channelCount} 个"
+            binding.remoteHintText.text = "上下选择 · 左右切换分组 · 确认播放"
+            binding.videoScene.visibility = View.GONE
+            binding.detailCard.visibility = View.GONE
+            binding.epgTicker.visibility = View.GONE
+        } else {
+            binding.panelTitle.text = "节目单"
+            binding.panelSubtitle.text = "51zmt XMLTV · 今天 · 已匹配 ${matchedCount}/${channelCount}"
+            binding.remoteHintText.text = "上下选择频道 · 左右切换分组 · 确认播放"
+            binding.videoScene.visibility = View.VISIBLE
+            binding.detailCard.visibility = View.VISIBLE
+            binding.epgTicker.visibility = View.VISIBLE
+            binding.epgTickerText.isSelected = true
+        }
+    }
+
+    private fun updateEpgDetail() {
+        if (panelMode != PanelMode.EPG) {
+            binding.detailCard.visibility = View.GONE
+            binding.epgTicker.visibility = View.GONE
+            return
+        }
+
+        val row = currentRows().getOrNull(selectedRowIndex)
+        if (row == null) {
+            binding.detailCard.visibility = View.GONE
+            binding.epgTicker.visibility = View.GONE
+            return
+        }
+
+        val currentProgram = row.currentProgram.ifBlank { "暂无节目信息" }
+        val nextLine = nextProgramLine(row)
+        binding.detailCard.visibility = View.VISIBLE
+        binding.epgTicker.visibility = View.VISIBLE
+        binding.detailTitle.text = currentProgram
+        binding.detailBody.text = "${row.title} 的节目简介会在这里显示；如 XMLTV 提供描述，可替换为完整节目说明。"
+        binding.detailNext.text = nextLine
+        binding.epgTickerText.text = "${row.title}    正在播放  $currentProgram    $nextLine"
+        binding.epgTickerText.isSelected = true
+    }
+
+    private fun nextProgramLine(row: ChannelPanelRow): String {
+        return if (row.nextProgramTime.isNotBlank() && row.nextProgram.isNotBlank()) {
+            "${row.nextProgramTime} ${row.nextProgram}"
+        } else if (row.nextProgram.isNotBlank()) {
+            row.nextProgram
+        } else {
+            "暂无后续节目信息"
+        }
+    }
+
     private fun rowBackground(row: ChannelPanelRow, isSelected: Boolean): Int {
         return when {
             isSelected -> R.drawable.channel_panel_row_selected
@@ -308,19 +342,19 @@ class ChannelPanelFragment : Fragment() {
         }
     }
 
-    private fun rowTitleColor(row: ChannelPanelRow, isSelected: Boolean): Int {
-        return when {
-            isSelected -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
-            row.isPlaying -> ContextCompat.getColor(requireContext(), R.color.channel_panel_accent)
-            else -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_primary)
+    private fun rowTitleColor(isSelected: Boolean): Int {
+        return if (isSelected) {
+            ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
+        } else {
+            ContextCompat.getColor(requireContext(), R.color.channel_panel_text_primary)
         }
     }
 
-    private fun rowMetaColor(row: ChannelPanelRow, isSelected: Boolean): Int {
-        return when {
-            isSelected -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
-            row.isPlaying -> ContextCompat.getColor(requireContext(), R.color.channel_panel_accent)
-            else -> ContextCompat.getColor(requireContext(), R.color.channel_panel_text_secondary)
+    private fun rowMetaColor(isSelected: Boolean): Int {
+        return if (isSelected) {
+            ContextCompat.getColor(requireContext(), R.color.channel_panel_text_selected)
+        } else {
+            ContextCompat.getColor(requireContext(), R.color.channel_panel_text_secondary)
         }
     }
 
@@ -371,8 +405,9 @@ class ChannelPanelFragment : Fragment() {
         _binding = null
     }
 
-    companion object {
-        private const val AUTO_HIDE_DELAY = 10000L
+    private enum class PanelMode {
+        PLAYLIST,
+        EPG
     }
 
     private inner class ChannelAdapter : RecyclerView.Adapter<ChannelAdapter.ChannelViewHolder>() {
@@ -432,6 +467,7 @@ class ChannelPanelFragment : Fragment() {
                         updateSelection(oldIndex, selectedRowIndex)
                         applySelectionToVisibleRow(oldIndex)
                         applySelectionToVisibleRow(selectedRowIndex)
+                        updateEpgDetail()
                         scheduleAutoHide()
                     }
                 }
@@ -441,35 +477,49 @@ class ChannelPanelFragment : Fragment() {
                 this.row = row
                 rowBinding.channelNumber.text = row.displayNumber
                 rowBinding.channelTitle.text = row.title
-                rowBinding.channelProgram.text = row.currentProgram
-                rowBinding.channelProgram.visibility =
-                    if (row.currentProgram.isBlank()) View.GONE else View.VISIBLE
                 rowBinding.playingMarker.visibility =
                     if (row.isPlaying) View.VISIBLE else View.INVISIBLE
+
+                val showEpg = panelMode == PanelMode.EPG
+                rowBinding.channelProgram.text = row.currentProgram.ifBlank { "暂无节目信息" }
+                rowBinding.channelProgram.visibility = if (showEpg) View.VISIBLE else View.GONE
+                rowBinding.channelNext.text = nextProgramLine(row).replaceFirst(" ", "\n")
+                rowBinding.channelNext.visibility = if (showEpg) View.VISIBLE else View.GONE
+                rowBinding.progressContainer.visibility = if (showEpg && isSelected) View.VISIBLE else View.GONE
+
                 applySelection(isSelected)
-                loadLogo(rowBinding.channelLogo, row.logo)
             }
 
             fun applySelection(isSelected: Boolean) {
                 val currentRow = row ?: return
-                rowBinding.root.setBackgroundResource(rowBackground(currentRow, isSelected))
-                rowBinding.channelTitle.setTextColor(rowTitleColor(currentRow, isSelected))
-                rowBinding.channelNumber.setTextColor(rowMetaColor(currentRow, isSelected))
-                rowBinding.channelProgram.setTextColor(rowMetaColor(currentRow, isSelected))
-            }
-
-            private fun loadLogo(imageView: ImageView, logo: String) {
-                if (logo.isBlank()) {
-                    imageView.setImageResource(R.drawable.logo)
-                    return
+                val showEpg = panelMode == PanelMode.EPG
+                val height = when {
+                    showEpg && isSelected -> dp(92)
+                    showEpg -> dp(78)
+                    isSelected -> dp(76)
+                    else -> dp(64)
                 }
+                rowBinding.root.layoutParams = (rowBinding.root.layoutParams as? RecyclerView.LayoutParams)
+                    ?.apply { this.height = height }
+                    ?: RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, height)
 
-                Glide.with(imageView.context)
-                    .load(logo)
-                    .centerInside()
-                    .placeholder(R.drawable.logo)
-                    .into(imageView)
+                rowBinding.root.setBackgroundResource(rowBackground(currentRow, isSelected))
+                rowBinding.channelTitle.setTextColor(rowTitleColor(isSelected))
+                rowBinding.channelNumber.setTextColor(rowMetaColor(isSelected))
+                rowBinding.channelProgram.setTextColor(rowMetaColor(isSelected))
+                rowBinding.channelNext.setTextColor(rowMetaColor(isSelected))
+                rowBinding.progressContainer.visibility = if (showEpg && isSelected) View.VISIBLE else View.GONE
+                if (showEpg && isSelected) {
+                    rowBinding.progressBar.layoutParams = FrameLayout.LayoutParams(
+                        dp(300),
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
             }
         }
+    }
+
+    companion object {
+        private const val AUTO_HIDE_DELAY = 10000L
     }
 }

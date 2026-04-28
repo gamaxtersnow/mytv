@@ -10,6 +10,8 @@ data class ChannelPanelRow(
     val title: String,
     val logo: String,
     val currentProgram: String,
+    val nextProgram: String,
+    val nextProgramTime: String,
     val isPlaying: Boolean
 )
 
@@ -23,7 +25,9 @@ data class ChannelPanelSource(
     val title: String,
     val logo: String,
     val group: String,
-    val currentProgram: String = ""
+    val currentProgram: String = "",
+    val nextProgram: String = "",
+    val nextProgramTime: String = ""
 )
 
 class TVListViewModel : ViewModel() {
@@ -165,19 +169,31 @@ class TVListViewModel : ViewModel() {
 
         private fun TVViewModel.toChannelPanelSource(): ChannelPanelSource {
             val tv = getTV()
-            val currentProgram = epg.value
-                ?.asSequence()
-                ?.filter { it.beginTime < System.currentTimeMillis() / 1000 }
-                ?.lastOrNull()
+            val now = System.currentTimeMillis() / 1000
+            val epgList = epg.value.orEmpty()
+
+            val currentProgram = epgList
+                .asSequence()
+                .filter { it.beginTime < now }
+                .lastOrNull()
                 ?.title
                 .orEmpty()
+
+            val nextEpg = epgList
+                .asSequence()
+                .filter { it.beginTime >= now }
+                .firstOrNull()
 
             return ChannelPanelSource(
                 id = tv.id,
                 title = tv.title,
                 logo = tv.logo,
                 group = tv.channel,
-                currentProgram = currentProgram
+                currentProgram = currentProgram,
+                nextProgram = nextEpg?.title.orEmpty(),
+                nextProgramTime = nextEpg?.let {
+                    String.format("%02d:%02d", it.beginTime / 3600 % 24, it.beginTime / 60 % 60)
+                }.orEmpty()
             )
         }
 
@@ -188,6 +204,8 @@ class TVListViewModel : ViewModel() {
                 title = title,
                 logo = logo,
                 currentProgram = currentProgram,
+                nextProgram = nextProgram,
+                nextProgramTime = nextProgramTime,
                 isPlaying = id == currentPlayingId
             )
         }

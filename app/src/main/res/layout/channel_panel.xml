@@ -3,7 +3,7 @@
     android:id="@+id/channel_panel_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#33000000"
+    android:background="#55000000"
     android:clickable="true"
     android:focusable="true">
 
@@ -14,46 +14,179 @@
         android:layout_gravity="start"
         android:background="@drawable/channel_panel_background"
         android:clickable="true"
-        android:focusable="true"
-        android:paddingStart="18dp"
-        android:paddingTop="22dp"
-        android:paddingEnd="18dp"
-        android:paddingBottom="22dp">
+        android:focusable="true">
 
-        <LinearLayout
-            android:id="@+id/panel_content"
+        <TextView
+            android:id="@+id/panel_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="26dp"
+            android:textColor="@color/channel_panel_text_selected"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/panel_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="118dp"
+            android:layout_marginTop="36dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_secondary"
+            android:textSize="15sp" />
+
+        <FrameLayout
+            android:id="@+id/group_container"
+            android:layout_width="150dp"
+            android:layout_height="match_parent"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="90dp"
+            android:layout_marginBottom="72dp">
+
+            <ScrollView
+                android:id="@+id/group_vertical_scroll"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true"
+                android:overScrollMode="ifContentScrolls">
+
+                <LinearLayout
+                    android:id="@+id/group_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+        </FrameLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/channel_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="horizontal">
+            android:layout_marginStart="194dp"
+            android:layout_marginTop="90dp"
+            android:layout_marginEnd="28dp"
+            android:layout_marginBottom="72dp"
+            android:clipToPadding="false"
+            android:overScrollMode="ifContentScrolls" />
 
-            <FrameLayout
-                android:id="@+id/group_container"
-                android:layout_width="160dp"
-                android:layout_height="match_parent">
+        <FrameLayout
+            android:id="@+id/remote_hint"
+            android:layout_width="match_parent"
+            android:layout_height="42dp"
+            android:layout_gravity="bottom"
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="30dp"
+            android:layout_marginBottom="28dp"
+            android:background="@drawable/channel_panel_legend_bg">
 
-                <ScrollView
-                    android:id="@+id/group_vertical_scroll"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:fillViewport="true"
-                    android:overScrollMode="ifContentScrolls">
+            <TextView
+                android:id="@+id/remote_hint_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:layout_marginStart="22dp"
+                android:ellipsize="end"
+                android:singleLine="true"
+                android:textColor="@color/channel_panel_text_secondary"
+                android:textSize="14sp" />
+        </FrameLayout>
+    </FrameLayout>
 
-                    <LinearLayout
-                        android:id="@+id/group_list"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical" />
-                </ScrollView>
+    <FrameLayout
+        android:id="@+id/video_scene"
+        android:layout_width="420dp"
+        android:layout_height="250dp"
+        android:layout_marginStart="720dp"
+        android:layout_marginTop="76dp"
+        android:background="@drawable/channel_panel_scene_bg"
+        android:visibility="gone" />
 
-            </FrameLayout>
+    <LinearLayout
+        android:id="@+id/detail_card"
+        android:layout_width="@dimen/channel_panel_detail_width"
+        android:layout_height="@dimen/channel_panel_detail_height"
+        android:layout_gravity="end|top"
+        android:layout_marginTop="370dp"
+        android:layout_marginEnd="80dp"
+        android:background="@drawable/player_overlay_card_bg"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="18dp"
+        android:visibility="gone">
 
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/channel_list"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_marginStart="18dp"
-                android:clipToPadding="false"
-                android:overScrollMode="ifContentScrolls" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/detail_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="当前节目详情"
+            android:textColor="@color/channel_panel_text_selected"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/detail_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/detail_body"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:lineSpacingMultiplier="1.1"
+            android:maxLines="2"
+            android:textColor="@color/channel_panel_text_secondary"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/detail_next"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_accent"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/detail_status"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/epg_ticker"
+        android:layout_width="match_parent"
+        android:layout_height="68dp"
+        android:layout_gravity="bottom"
+        android:background="#CC071013"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/epg_ticker_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:layout_marginStart="36dp"
+            android:ellipsize="marquee"
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:marqueeRepeatLimit="marquee_forever"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
     </FrameLayout>
 </FrameLayout>

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="channel_panel_width">640dp</dimen>
+    <dimen name="channel_panel_width">690dp</dimen>
+    <dimen name="channel_panel_detail_width">440dp</dimen>
+    <dimen name="channel_panel_detail_height">190dp</dimen>
+    <dimen name="setting_dialog_width">940dp</dimen>
+    <dimen name="setting_dialog_height">560dp</dimen>
 </resources>
