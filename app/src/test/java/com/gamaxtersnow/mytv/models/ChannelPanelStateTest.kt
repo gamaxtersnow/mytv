@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 
@@ -70,7 +71,7 @@ class ChannelPanelStateTest {
                     title = "CCTV-1",
                     group = "央视",
                     logo = "https://example.com/logo.png",
-                    currentProgram = "新闻联播"
+                    programSummary = ProgramSummary(currentTitle = "新闻联播", hasEpg = true)
                 ),
             ),
             currentPlayingId = 0,
@@ -78,6 +79,7 @@ class ChannelPanelStateTest {
 
         assertEquals("https://example.com/logo.png", groups[0].rows[0].logo)
         assertEquals("新闻联播", groups[0].rows[0].currentProgram)
+        assertTrue(groups[0].rows[0].programSummary.hasEpg)
     }
 
     @Test
@@ -105,6 +107,34 @@ class ChannelPanelStateTest {
 
         assertNotSame(firstGroups, refreshedGroups)
         assertEquals("新节目", refreshedGroups[0].rows[0].currentProgram)
+        assertNotNull(refreshedGroups[0].rows[0].programSummary)
+    }
+
+    @Test
+    fun preservesNextProgrammeAndProgressInRows() {
+        val groups = TVListViewModel.buildChannelPanelGroups(
+            channels = listOf(
+                channel(
+                    id = 0,
+                    title = "CCTV-1",
+                    group = "央视",
+                    programSummary = ProgramSummary(
+                        currentTitle = "朝闻天下",
+                        currentStartTimeText = "06:00",
+                        currentEndTimeText = "08:36",
+                        nextTitle = "生活早参考",
+                        nextStartTimeText = "08:36",
+                        progressPercent = 74,
+                        hasEpg = true
+                    )
+                )
+            ),
+            currentPlayingId = 0
+        )
+
+        assertEquals("朝闻天下", groups[0].rows[0].programSummary.currentTitle)
+        assertEquals("生活早参考", groups[0].rows[0].programSummary.nextTitle)
+        assertEquals(74, groups[0].rows[0].programSummary.progressPercent)
     }
 
     private fun channel(
@@ -112,14 +142,18 @@ class ChannelPanelStateTest {
         title: String,
         group: String,
         logo: String = "",
-        currentProgram: String = ""
+        currentProgram: String = "",
+        programSummary: ProgramSummary = ProgramSummary(
+            currentTitle = currentProgram,
+            hasEpg = currentProgram.isNotBlank()
+        )
     ): ChannelPanelSource {
         return ChannelPanelSource(
             id = id,
             title = title,
             logo = logo,
             group = group,
-            currentProgram = currentProgram,
+            programSummary = programSummary,
         )
     }
 }

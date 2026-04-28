@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/daily_overlay_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/iptv_scrim"
+    android:clickable="false"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:id="@+id/daily_top_status"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_gravity="top"
+        android:layout_marginStart="50dp"
+        android:layout_marginTop="28dp"
+        android:layout_marginEnd="50dp"
+        android:background="@drawable/iptv_overlay_panel_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp">
+
+        <TextView
+            android:id="@+id/daily_channel_number"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/iptv_accent"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/daily_channel_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/daily_now_card"
+        android:layout_width="690dp"
+        android:layout_height="132dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="50dp"
+        android:layout_marginBottom="48dp"
+        android:background="@drawable/iptv_overlay_panel_bg"
+        android:orientation="vertical"
+        android:padding="18dp">
+
+        <TextView
+            android:id="@+id/daily_current_program"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:text="@string/playback_no_epg"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="22sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/daily_current_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_secondary"
+            android:textSize="15sp" />
+
+        <ProgressBar
+            android:id="@+id/daily_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="4dp"
+            android:layout_marginTop="14dp"
+            android:max="100"
+            android:progressDrawable="@drawable/iptv_progress" />
+
+        <TextView
+            android:id="@+id/daily_next_program"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_secondary"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/daily_actions"
+        android:layout_width="398dp"
+        android:layout_height="72dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="92dp"
+        android:layout_marginBottom="48dp"
+        android:background="@drawable/iptv_overlay_panel_bg"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:padding="14dp">
+
+        <Button
+            android:id="@+id/action_playlist"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_weight="1"
+            android:background="@drawable/iptv_action_bg"
+            android:text="@string/playback_action_playlist"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/action_epg"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/iptv_action_bg"
+            android:text="@string/playback_action_epg"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/action_settings"
+            android:layout_width="0dp"
+            android:layout_height="44dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/iptv_action_bg"
+            android:text="@string/playback_action_settings"
+            android:textColor="@color/channel_panel_text_primary"
+            android:textSize="14sp" />
+    </LinearLayout>
+</FrameLayout>

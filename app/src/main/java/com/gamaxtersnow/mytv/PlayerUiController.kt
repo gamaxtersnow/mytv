@@ -8,6 +8,12 @@ import com.gamaxtersnow.mytv.UnifiedVideoPlayer
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Gravity
+import android.widget.FrameLayout
+import com.gamaxtersnow.mytv.models.ProgramSummary
+import com.gamaxtersnow.mytv.models.TVViewModel
+import com.gamaxtersnow.mytv.ui.AppUiMode
+import com.gamaxtersnow.mytv.ui.AppUiSurface
 
 /**
  * 播放器UI控制器
@@ -25,6 +31,8 @@ class PlayerUiController(
     private var isControlPanelVisible = false
     private var isPerformanceMonitorVisible = true
     private var isPerformanceDetailsExpanded = false
+    private var isDailyOverlayVisible = false
+    private var uiMode: AppUiMode? = null
 
     // UI组件
     private val playerTypeValue: TextView? by lazy { rootView.findViewById(R.id.player_type_value) }
@@ -42,6 +50,19 @@ class PlayerUiController(
     private val errorMessage: TextView? by lazy { rootView.findViewById(R.id.error_message) }
     private val toggleMonitoringBtn: Button? by lazy { rootView.findViewById(R.id.toggle_monitoring_btn) }
     private val switchPlayerBtn: Button? by lazy { rootView.findViewById(R.id.switch_player_btn) }
+    private val dailyOverlayRoot: View? by lazy { rootView.findViewById(R.id.daily_overlay_root) }
+    private val dailyTopStatus: View? by lazy { rootView.findViewById(R.id.daily_top_status) }
+    private val dailyNowCard: View? by lazy { rootView.findViewById(R.id.daily_now_card) }
+    private val dailyActions: View? by lazy { rootView.findViewById(R.id.daily_actions) }
+    private val dailyChannelNumber: TextView? by lazy { rootView.findViewById(R.id.daily_channel_number) }
+    private val dailyChannelName: TextView? by lazy { rootView.findViewById(R.id.daily_channel_name) }
+    private val dailyCurrentProgram: TextView? by lazy { rootView.findViewById(R.id.daily_current_program) }
+    private val dailyCurrentTime: TextView? by lazy { rootView.findViewById(R.id.daily_current_time) }
+    private val dailyProgress: ProgressBar? by lazy { rootView.findViewById(R.id.daily_progress) }
+    private val dailyNextProgram: TextView? by lazy { rootView.findViewById(R.id.daily_next_program) }
+    private val actionPlaylist: Button? by lazy { rootView.findViewById(R.id.action_playlist) }
+    private val actionEpg: Button? by lazy { rootView.findViewById(R.id.action_epg) }
+    private val actionSettings: Button? by lazy { rootView.findViewById(R.id.action_settings) }
 
     // 控制面板组件
     private val performanceModeSpinner: Spinner? by lazy { rootView.findViewById(R.id.performance_mode_spinner) }
@@ -81,13 +102,144 @@ class PlayerUiController(
         fun onResumeRequested()
         fun onStopRequested()
         fun onReplayRequested()
+        fun onPlaylistRequested()
+        fun onEpgRequested()
+        fun onSettingsRequested()
     }
 
     init {
         setupStatusControls()
         setupControlPanel()
         setupPerformanceMonitorPanel()
+        setupDailyOverlay()
         startStatusUpdates()
+    }
+
+    private fun setupDailyOverlay() {
+        dailyOverlayRoot?.visibility = View.GONE
+        rootView.findViewById<View>(R.id.player_status_container)?.visibility = View.GONE
+        rootView.findViewById<View>(R.id.player_control_container)?.visibility = View.GONE
+        rootView.findViewById<View>(R.id.performance_monitor_container)?.visibility = View.GONE
+        isMonitoringVisible = false
+        isPerformanceMonitorVisible = false
+
+        actionPlaylist?.setOnClickListener { listener.onPlaylistRequested() }
+        actionEpg?.setOnClickListener { listener.onEpgRequested() }
+        actionSettings?.setOnClickListener { listener.onSettingsRequested() }
+    }
+
+    fun bindDailyOverlay(tvViewModel: TVViewModel) {
+        val tv = tvViewModel.getTV()
+        val summary = ProgramSummary.from(
+            epg = tvViewModel.epg.value.orEmpty(),
+            nowSeconds = System.currentTimeMillis() / 1000
+        )
+        dailyChannelNumber?.text = "%03d".format(tv.id + 1)
+        dailyChannelName?.text = tv.title
+        dailyCurrentProgram?.text = summary.currentTitle.ifBlank {
+            rootView.context.getString(R.string.playback_no_epg)
+        }
+        dailyCurrentTime?.text = when {
+            summary.currentStartTimeText.isBlank() || summary.currentEndTimeText.isBlank() -> ""
+            else -> "${summary.currentStartTimeText} - ${summary.currentEndTimeText}"
+        }
+        dailyProgress?.progress = summary.progressPercent ?: 0
+        dailyProgress?.visibility = if (summary.progressPercent == null) View.GONE else View.VISIBLE
+        dailyNextProgram?.text = summary.nextTitle.takeIf { it.isNotBlank() }?.let {
+            "${rootView.context.getString(R.string.playback_next_prefix)}  $it ${summary.nextStartTimeText}"
+        }.orEmpty()
+        dailyNextProgram?.visibility = if (dailyNextProgram?.text.isNullOrBlank()) View.GONE else View.VISIBLE
+    }
+
+    fun applyUiMode(mode: AppUiMode) {
+        uiMode = mode
+        val root = dailyOverlayRoot ?: return
+        val topParams = dailyTopStatus?.layoutParams as? FrameLayout.LayoutParams
+        val nowParams = dailyNowCard?.layoutParams as? FrameLayout.LayoutParams
+        val actionParams = dailyActions?.layoutParams as? FrameLayout.LayoutParams
+
+        when (mode.surface) {
+            AppUiSurface.TV -> {
+                root.setBackgroundResource(android.R.color.transparent)
+                topParams?.apply {
+                    width = FrameLayout.LayoutParams.MATCH_PARENT
+                    height = dp(48)
+                    gravity = Gravity.TOP
+                    setMargins(dp(50), dp(28), dp(50), 0)
+                }
+                nowParams?.apply {
+                    width = dp(690)
+                    height = dp(132)
+                    gravity = Gravity.BOTTOM or Gravity.START
+                    setMargins(dp(50), 0, 0, dp(48))
+                }
+                actionParams?.apply {
+                    width = dp(398)
+                    height = dp(72)
+                    gravity = Gravity.BOTTOM or Gravity.END
+                    setMargins(0, 0, dp(92), dp(48))
+                }
+            }
+            AppUiSurface.PHONE_PORTRAIT -> {
+                root.setBackgroundColor(0x20000000)
+                topParams?.apply {
+                    width = FrameLayout.LayoutParams.MATCH_PARENT
+                    height = dp(62)
+                    gravity = Gravity.TOP
+                    setMargins(0, 0, 0, 0)
+                }
+                nowParams?.apply {
+                    width = FrameLayout.LayoutParams.MATCH_PARENT
+                    height = dp(74)
+                    gravity = Gravity.TOP
+                    setMargins(dp(18), dp(86), dp(18), 0)
+                }
+                actionParams?.apply {
+                    width = FrameLayout.LayoutParams.MATCH_PARENT
+                    height = dp(236)
+                    gravity = Gravity.BOTTOM
+                    setMargins(0, 0, 0, 0)
+                }
+            }
+            AppUiSurface.PHONE_LANDSCAPE -> {
+                root.setBackgroundColor(0x16000000)
+                topParams?.apply {
+                    width = FrameLayout.LayoutParams.MATCH_PARENT
+                    height = dp(44)
+                    gravity = Gravity.TOP
+                    setMargins(dp(28), dp(18), dp(28), 0)
+                }
+                nowParams?.apply {
+                    width = dp(460)
+                    height = dp(112)
+                    gravity = Gravity.BOTTOM or Gravity.START
+                    setMargins(dp(28), 0, 0, dp(28))
+                }
+                actionParams?.apply {
+                    width = dp(330)
+                    height = dp(64)
+                    gravity = Gravity.BOTTOM or Gravity.END
+                    setMargins(0, 0, dp(28), dp(28))
+                }
+            }
+        }
+        dailyTopStatus?.layoutParams = topParams
+        dailyNowCard?.layoutParams = nowParams
+        dailyActions?.layoutParams = actionParams
+    }
+
+    fun toggleDailyOverlay() {
+        if (isDailyOverlayVisible) hideDailyOverlay() else showDailyOverlay()
+    }
+
+    fun showDailyOverlay() {
+        isDailyOverlayVisible = true
+        dailyOverlayRoot?.visibility = View.VISIBLE
+    }
+
+    fun hideDailyOverlay() {
+        isDailyOverlayVisible = false
+        dailyOverlayRoot?.visibility = View.GONE
     }
 
     /**
@@ -499,6 +651,10 @@ class PlayerUiController(
             isPerformanceMonitorVisible = !isPerformanceMonitorVisible
             monitorPanel.visibility = if (isPerformanceMonitorVisible) View.VISIBLE else View.GONE
         }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * rootView.resources.displayMetrics.density).toInt()
     }
 
     /**

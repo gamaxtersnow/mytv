@@ -18,7 +18,9 @@ import androidx.leanback.widget.Presenter
 import androidx.leanback.widget.Row
 import androidx.leanback.widget.RowPresenter
 import androidx.lifecycle.lifecycleScope
+import com.gamaxtersnow.mytv.epg.EpgRepository
 import com.gamaxtersnow.mytv.models.ProgramType
+import com.gamaxtersnow.mytv.models.EPG
 import com.gamaxtersnow.mytv.models.TVListViewModel
 import com.gamaxtersnow.mytv.models.TVViewModel
 import kotlinx.coroutines.Dispatchers
@@ -119,6 +121,7 @@ class MainFragment : BrowseSupportFragment() {
             val listRowAdapter = ArrayObjectAdapter(cardPresenter)
             for ((idx2, v1) in v.withIndex()) {
                 val tvViewModel = TVViewModel(v1)
+                applyCachedEpg(tvViewModel)
                 tvViewModel.setRowPosition(idx.toInt())
                 tvViewModel.setItemPosition(idx2)
                 tvListViewModel.addTVViewModel(tvViewModel)
@@ -320,6 +323,9 @@ class MainFragment : BrowseSupportFragment() {
     }
 
     private fun updateEPG(tvViewModel: TVViewModel) {
+        if (tvViewModel.epg.value?.isNotEmpty() == true) {
+            return
+        }
         when (tvViewModel.getTV().programType) {
             ProgramType.F -> {
                 Request.fetchFEPG(tvViewModel)
@@ -329,6 +335,23 @@ class MainFragment : BrowseSupportFragment() {
                 // RTP频道不需要EPG数据
             }
         }
+    }
+
+    private fun applyCachedEpg(tvViewModel: TVViewModel) {
+        val repository = (activity?.applicationContext as? MyApplication)?.epgRepository ?: return
+        val programmes = repository.programmesFor(tvViewModel.getTV())
+        if (programmes.isEmpty()) {
+            return
+        }
+        tvViewModel.setEPG(
+            programmes.map {
+                EPG(
+                    title = it.title,
+                    beginTime = it.startTime.toInt(),
+                    endTime = it.stopTime.toInt()
+                )
+            }
+        )
     }
 
     override fun onResume() {

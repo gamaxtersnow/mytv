@@ -9,9 +9,12 @@ data class ChannelPanelRow(
     val displayNumber: String,
     val title: String,
     val logo: String,
-    val currentProgram: String,
+    val programSummary: ProgramSummary,
     val isPlaying: Boolean
-)
+) {
+    val currentProgram: String
+        get() = programSummary.currentTitle
+}
 
 data class ChannelPanelGroup(
     val title: String,
@@ -23,8 +26,11 @@ data class ChannelPanelSource(
     val title: String,
     val logo: String,
     val group: String,
-    val currentProgram: String = ""
-)
+    val programSummary: ProgramSummary = ProgramSummary()
+) {
+    val currentProgram: String
+        get() = programSummary.currentTitle
+}
 
 class TVListViewModel : ViewModel() {
 
@@ -165,19 +171,15 @@ class TVListViewModel : ViewModel() {
 
         private fun TVViewModel.toChannelPanelSource(): ChannelPanelSource {
             val tv = getTV()
-            val currentProgram = epg.value
-                ?.asSequence()
-                ?.filter { it.beginTime < System.currentTimeMillis() / 1000 }
-                ?.lastOrNull()
-                ?.title
-                .orEmpty()
-
             return ChannelPanelSource(
                 id = tv.id,
                 title = tv.title,
                 logo = tv.logo,
                 group = tv.channel,
-                currentProgram = currentProgram
+                programSummary = ProgramSummary.from(
+                    epg = epg.value.orEmpty(),
+                    nowSeconds = System.currentTimeMillis() / 1000
+                )
             )
         }
 
@@ -187,7 +189,7 @@ class TVListViewModel : ViewModel() {
                 displayNumber = "%03d".format(id + 1),
                 title = title,
                 logo = logo,
-                currentProgram = currentProgram,
+                programSummary = programSummary,
                 isPlaying = id == currentPlayingId
             )
         }

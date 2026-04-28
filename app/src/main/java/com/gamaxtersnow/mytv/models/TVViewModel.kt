@@ -126,6 +126,11 @@ class TVViewModel(private var tv: TV) : ViewModel() {
         epgVersion += 1
     }
 
+    fun setEPG(epg: List<EPG>) {
+        _epg.value = epg.toMutableList()
+        epgVersion += 1
+    }
+
     fun getVideoUrlCurrent(): String {
         return _videoUrl.value!![_videoIndex.value!!]
     }

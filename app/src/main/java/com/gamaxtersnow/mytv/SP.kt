@@ -34,6 +34,9 @@ object SP {
 
     // Last successful update timestamp
     private const val KEY_LAST_UPDATE_TIME = "last_update_time"
+    private const val KEY_EPG_SOURCE = "epg_source"
+    private const val KEY_EPG_LAST_UPDATE_TIME = "epg_last_update_time"
+    private const val KEY_EPG_UPDATE_INTERVAL = "epg_update_interval"
 
     private lateinit var sp: SharedPreferences
 
@@ -83,4 +86,16 @@ object SP {
     var lastUpdateTime: Long
         get() = sp.getLong(KEY_LAST_UPDATE_TIME, 0L)
         set(value) = sp.edit().putLong(KEY_LAST_UPDATE_TIME, value).apply()
+
+    var epgSource: String
+        get() = sp.getString(KEY_EPG_SOURCE, "") ?: ""
+        set(value) = sp.edit().putString(KEY_EPG_SOURCE, value).apply()
+
+    var epgLastUpdateTime: Long
+        get() = sp.getLong(KEY_EPG_LAST_UPDATE_TIME, 0L)
+        set(value) = sp.edit().putLong(KEY_EPG_LAST_UPDATE_TIME, value).apply()
+
+    var epgUpdateInterval: Long
+        get() = sp.getLong(KEY_EPG_UPDATE_INTERVAL, 12 * 60 * 60 * 1000L)
+        set(value) = sp.edit().putLong(KEY_EPG_UPDATE_INTERVAL, value).apply()
 }

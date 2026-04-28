@@ -1,6 +1,7 @@
 package com.gamaxtersnow.mytv
 
 import android.content.Context
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
@@ -20,6 +21,7 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
 import com.gamaxtersnow.mytv.models.TVViewModel
+import com.gamaxtersnow.mytv.ui.AppUiMode
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -35,9 +37,11 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     private val infoFragment = InfoFragment()
     private val channelFragment = ChannelFragment()
     private val channelPanelFragment = ChannelPanelFragment()
+    private val epgPanelFragment = EpgPanelFragment()
     private var timeFragment = TimeFragment()
     private val settingFragment = SettingFragment()
     private val errorFragment = ErrorFragment()
+    private lateinit var currentUiMode: AppUiMode
 
     private var doubleBackToExitPressedOnce = false
 
@@ -62,6 +66,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         super.onCreate(savedInstanceState)
 
         setContentView(R.layout.activity_main)
+        currentUiMode = AppUiMode.from(this)
 
         Request.setRequestListener(this)
 
@@ -87,10 +92,12 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
                 .add(R.id.main_browse_fragment, infoFragment)
                 .add(R.id.main_browse_fragment, channelFragment)
                 .add(R.id.main_browse_fragment, channelPanelFragment)
+                .add(R.id.main_browse_fragment, epgPanelFragment)
                 .add(R.id.main_browse_fragment, mainFragment)
                 .hide(mainFragment)
                 .commit()
         }
+        applyUiMode(currentUiMode)
         gestureDetector = GestureDetector(this, GestureListener())
 
         errorFragment.buttonClickListener = View.OnClickListener {
@@ -123,6 +130,26 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             SP.remoteUrl = RemotePlaylistManager.getDefaultUrl()
         }
 
+        val epgRepository = (applicationContext as MyApplication).epgRepository
+        lifecycleScope.launch(Dispatchers.IO) {
+            if (epgRepository.loadCache()) {
+                SP.epgSource = epgRepository.status.sourceKey
+                SP.epgLastUpdateTime = epgRepository.status.lastSuccessTime
+            }
+            val shouldRefresh = SP.epgLastUpdateTime == 0L ||
+                System.currentTimeMillis() - SP.epgLastUpdateTime >= SP.epgUpdateInterval
+            if (shouldRefresh && epgRepository.refresh()) {
+                SP.epgSource = epgRepository.status.sourceKey
+                SP.epgLastUpdateTime = epgRepository.status.lastSuccessTime
+            }
+            withContext(Dispatchers.Main) {
+                if (::currentUiMode.isInitialized) {
+                    mainFragment.reloadRows()
+                    channelPanelFragment.refresh(mainFragment.tvListViewModel)
+                }
+            }
+        }
+
         // 加载缓存的远程列表，与本地凤凰台合并
         TVList.refresh(this)
 
@@ -134,6 +161,21 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
                 mainFragment.reloadRows()
                 channelPanelFragment.refresh(mainFragment.tvListViewModel)
             }
+        }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        currentUiMode = AppUiMode.from(this)
+        applyUiMode(currentUiMode)
+    }
+
+    private fun applyUiMode(uiMode: AppUiMode) {
+        playerFragment.onUiModeChanged(uiMode)
+        channelPanelFragment.onUiModeChanged(uiMode)
+        epgPanelFragment.onUiModeChanged(uiMode)
+        if (settingFragment.isVisible) {
+            settingFragment.onUiModeChanged(uiMode)
         }
     }
 
@@ -196,13 +238,45 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             return
         }
 
+        if (epgPanelFragment.isShowing()) {
+            epgPanelFragment.hide()
+        }
+
         if (channelPanelFragment.isShowing()) {
             channelPanelFragment.hide()
         } else {
+            playerFragment.hideDailyOverlay()
             hideLegacyMainFragment()
             channelPanelFragment.show(mainFragment.tvListViewModel)
             showTime()
         }
+    }
+
+    fun toggleEpgPanel() {
+        if (settingFragment.isVisible) {
+            return
+        }
+        if (epgPanelFragment.isShowing()) {
+            epgPanelFragment.hide()
+        } else {
+            channelPanelFragment.hide()
+            playerFragment.hideDailyOverlay()
+            hideLegacyMainFragment()
+            epgPanelFragment.show(mainFragment.tvListViewModel)
+            showTime()
+        }
+    }
+
+    fun toggleSettingPanel() {
+        showSetting()
+    }
+
+    fun togglePlayerControlPanel() {
+        playerFragment.toggleControlPanel()
+    }
+
+    fun togglePerformanceMonitorPanel() {
+        playerFragment.togglePerformanceMonitor()
     }
 
     fun scheduleChannelOverlayAutoHide() {
@@ -283,7 +357,13 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
 
         override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
-            toggleChannelPanel()
+            if (currentUiMode.isTelevision) {
+                toggleChannelPanel()
+            } else {
+                channelPanelFragment.hide()
+                epgPanelFragment.hide()
+                playerFragment.toggleDailyOverlay()
+            }
             return true
         }
 
@@ -337,9 +417,14 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
         if (channelPanelFragment.isShowing()) {
             channelPanelFragment.hide()
         }
+        if (epgPanelFragment.isShowing()) {
+            epgPanelFragment.hide()
+        }
 
         Log.i(TAG, "settingFragment ${settingFragment.isVisible}")
         if (!settingFragment.isVisible) {
+            playerFragment.hideDailyOverlay()
+            settingFragment.onUiModeChanged(currentUiMode)
             settingFragment.show(supportFragmentManager, "setting")
             settingDelayHide()
         } else {
@@ -398,6 +483,16 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             return
         }
 
+        if (epgPanelFragment.isShowing()) {
+            epgPanelFragment.hide()
+            return
+        }
+
+        if (settingFragment.isVisible) {
+            settingFragment.dismiss()
+            return
+        }
+
         if (doubleBackToExitPressedOnce) {
             super.onBackPressed()
             return
@@ -414,6 +509,9 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         Log.i(TAG, "keyCode $keyCode, event $event")
         if (channelPanelFragment.handleKeyDown(keyCode)) {
+            return true
+        }
+        if (epgPanelFragment.handleKeyDown(keyCode)) {
             return true
         }
 
@@ -489,7 +587,7 @@ class MainActivity : FragmentActivity(), Request.RequestListener {
             }
 
             KeyEvent.KEYCODE_HELP -> {
-                showSetting()
+                toggleEpgPanel()
                 return true
             }
 

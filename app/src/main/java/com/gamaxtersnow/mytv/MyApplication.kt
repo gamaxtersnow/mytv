@@ -6,12 +6,16 @@ import android.os.Build
 import android.util.DisplayMetrics
 import android.view.WindowInsets
 import android.view.WindowManager
+import com.gamaxtersnow.mytv.epg.EpgRepository
 
 class MyApplication : Application() {
     private lateinit var displayMetrics: DisplayMetrics
+    lateinit var epgRepository: EpgRepository
+        private set
 
     override fun onCreate() {
         super.onCreate()
+        epgRepository = EpgRepository.create(this)
 
         displayMetrics = DisplayMetrics()
         // 获取显示 metrics，适配不同API版本

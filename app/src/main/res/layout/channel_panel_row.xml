@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="64dp"
+    android:layout_height="@dimen/iptv_row_height"
     android:layout_marginBottom="6dp"
     android:clickable="true"
     android:focusable="true"
@@ -13,7 +13,7 @@
     <TextView
         android:id="@+id/channel_number"
         android:layout_width="48dp"
-        android:layout_height="38dp"
+        android:layout_height="52dp"
         android:fontFamily="monospace"
         android:gravity="center"
         android:singleLine="true"
@@ -56,6 +56,27 @@
             android:singleLine="true"
             android:textColor="@color/channel_panel_text_secondary"
             android:textSize="13sp" />
+
+        <ProgressBar
+            android:id="@+id/channel_program_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="3dp"
+            android:layout_marginTop="5dp"
+            android:max="100"
+            android:progressDrawable="@drawable/iptv_progress"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/channel_next_program"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:ellipsize="end"
+            android:singleLine="true"
+            android:textColor="@color/channel_panel_text_secondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
     </LinearLayout>
 
     <TextView

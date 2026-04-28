@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="channel_panel_width">640dp</dimen>
+    <dimen name="channel_panel_width">690dp</dimen>
+    <dimen name="iptv_panel_padding">18dp</dimen>
+    <dimen name="iptv_phone_drawer_height">638dp</dimen>
+    <dimen name="iptv_landscape_panel_width">460dp</dimen>
+    <dimen name="iptv_row_height">76dp</dimen>
 </resources>

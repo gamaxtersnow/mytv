@@ -11,4 +11,12 @@
     <string name="channel_panel_playing">正在播放</string>
     <string name="channel_panel_group_all">全部</string>
     <string name="channel_panel_group_custom">自定义</string>
+    <string name="playback_action_playlist">频道</string>
+    <string name="playback_action_epg">节目单</string>
+    <string name="playback_action_settings">设置</string>
+    <string name="playback_no_epg">暂无节目单</string>
+    <string name="playback_next_prefix">接下来</string>
+    <string name="epg_panel_title">节目单</string>
+    <string name="epg_panel_status_unavailable">节目单暂不可用</string>
+    <string name="epg_panel_empty">暂无节目数据</string>
 </resources>

@@ -43,4 +43,12 @@
     <color name="channel_panel_text_primary">#FFF4F7F8</color>
     <color name="channel_panel_text_secondary">#B8F4F7F8</color>
     <color name="channel_panel_text_selected">#FFFFFFFF</color>
+    <color name="iptv_overlay_background">#DD071115</color>
+    <color name="iptv_overlay_background_soft">#99071115</color>
+    <color name="iptv_scrim">#33000000</color>
+    <color name="iptv_phone_drawer">#FFF7FAFB</color>
+    <color name="iptv_phone_text_primary">#FF111E24</color>
+    <color name="iptv_phone_text_secondary">#99223339</color>
+    <color name="iptv_accent">#FF26C6DA</color>
+    <color name="iptv_progress_track">#334D6B73</color>
 </resources>

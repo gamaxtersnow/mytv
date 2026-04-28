@@ -17,6 +17,7 @@ import com.gamaxtersnow.mytv.models.TVViewModel
 import com.gamaxtersnow.mytv.UnifiedVideoPlayer
 import com.gamaxtersnow.mytv.Utils
 import com.gamaxtersnow.mytv.MainActivity
+import com.gamaxtersnow.mytv.ui.AppUiMode
 
 /**
  * 播放器Fragment
@@ -37,6 +38,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
     private lateinit var playerController: PlayerController
     private lateinit var uiController: PlayerUiController
     private lateinit var errorRecoveryManager: ErrorRecoveryManager
+    private var uiMode: AppUiMode? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -142,6 +144,18 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
             override fun onReplayRequested() {
                 playerController.replay()
             }
+
+            override fun onPlaylistRequested() {
+                (activity as? MainActivity)?.toggleChannelPanel()
+            }
+
+            override fun onEpgRequested() {
+                (activity as? MainActivity)?.toggleEpgPanel()
+            }
+
+            override fun onSettingsRequested() {
+                (activity as? MainActivity)?.toggleSettingPanel()
+            }
         })
 
         // 初始化错误恢复管理器
@@ -205,6 +219,7 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
     @OptIn(UnstableApi::class)
     fun play(tvViewModel: TVViewModel) {
         this.tvViewModel = tvViewModel
+        uiController.bindDailyOverlay(tvViewModel)
         val videoUrl = tvViewModel.getVideoUrlCurrent()
 
         Log.i(TAG, "播放视频: ${tvViewModel.getTV().title}, URL: $videoUrl")
@@ -271,6 +286,25 @@ class PlayerFragment : Fragment(), SurfaceHolder.Callback {
         } else {
             // Surface未创建，等待Surface创建后再播放
             Log.d(TAG, "Surface未创建，等待Surface创建后再播放")
+        }
+    }
+
+    fun onUiModeChanged(mode: AppUiMode) {
+        uiMode = mode
+        if (::uiController.isInitialized) {
+            uiController.applyUiMode(mode)
+        }
+    }
+
+    fun toggleDailyOverlay() {
+        if (::uiController.isInitialized) {
+            uiController.toggleDailyOverlay()
+        }
+    }
+
+    fun hideDailyOverlay() {
+        if (::uiController.isInitialized) {
+            uiController.hideDailyOverlay()
         }
     }
 

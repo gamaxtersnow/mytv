@@ -21,6 +21,8 @@ import com.gamaxtersnow.mytv.databinding.ChannelPanelRowBinding
 import com.gamaxtersnow.mytv.models.ChannelPanelGroup
 import com.gamaxtersnow.mytv.models.ChannelPanelRow
 import com.gamaxtersnow.mytv.models.TVListViewModel
+import com.gamaxtersnow.mytv.ui.AppUiMode
+import com.gamaxtersnow.mytv.ui.AppUiSurface
 
 class ChannelPanelFragment : Fragment() {
     private var _binding: ChannelPanelBinding? = null
@@ -31,6 +33,7 @@ class ChannelPanelFragment : Fragment() {
     private var selectedGroupIndex = 0
     private var selectedRowIndex = 0
     private var playingId = 0
+    private var uiMode: AppUiMode? = null
     private var suppressFocusSelection = false
     private val channelAdapter = ChannelAdapter()
 
@@ -81,6 +84,13 @@ class ChannelPanelFragment : Fragment() {
         show(tvListViewModel)
     }
 
+    fun onUiModeChanged(mode: AppUiMode) {
+        uiMode = mode
+        if (_binding != null) {
+            configurePanelLayout()
+        }
+    }
+
     fun handleKeyDown(keyCode: Int): Boolean {
         if (!isShowing()) {
             return false
@@ -128,19 +138,56 @@ class ChannelPanelFragment : Fragment() {
         val channelParams = binding.channelList.layoutParams as LinearLayout.LayoutParams
         val groupListParams = binding.groupList.layoutParams
 
-        params.width = resources.getDimensionPixelSize(R.dimen.channel_panel_width)
-        params.height = ViewGroup.LayoutParams.MATCH_PARENT
-        params.gravity = android.view.Gravity.START
-        binding.panelContent.orientation = LinearLayout.HORIZONTAL
-        groupParams.width = dp(160)
-        groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-        channelParams.width = 0
-        channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
-        channelParams.weight = 1f
-        channelParams.marginStart = dp(18)
-        channelParams.topMargin = 0
-        groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
-        groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+        when (uiMode?.surface) {
+            AppUiSurface.PHONE_PORTRAIT -> {
+                params.width = ViewGroup.LayoutParams.MATCH_PARENT
+                params.height = resources.getDimensionPixelSize(R.dimen.iptv_phone_drawer_height)
+                params.gravity = android.view.Gravity.BOTTOM
+                binding.panelContainer.setBackgroundResource(R.drawable.iptv_phone_drawer_bg)
+                binding.panelContent.orientation = LinearLayout.VERTICAL
+                groupParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+                groupParams.height = dp(54)
+                channelParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+                channelParams.height = 0
+                channelParams.weight = 1f
+                channelParams.marginStart = 0
+                channelParams.topMargin = dp(12)
+                groupListParams.width = ViewGroup.LayoutParams.WRAP_CONTENT
+                groupListParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+            }
+            AppUiSurface.PHONE_LANDSCAPE -> {
+                params.width = resources.getDimensionPixelSize(R.dimen.iptv_landscape_panel_width)
+                params.height = ViewGroup.LayoutParams.MATCH_PARENT
+                params.gravity = android.view.Gravity.START
+                binding.panelContainer.setBackgroundResource(R.drawable.channel_panel_background)
+                binding.panelContent.orientation = LinearLayout.HORIZONTAL
+                groupParams.width = dp(124)
+                groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                channelParams.width = 0
+                channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                channelParams.weight = 1f
+                channelParams.marginStart = dp(12)
+                channelParams.topMargin = 0
+                groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+                groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+            else -> {
+                params.width = resources.getDimensionPixelSize(R.dimen.channel_panel_width)
+                params.height = ViewGroup.LayoutParams.MATCH_PARENT
+                params.gravity = android.view.Gravity.START
+                binding.panelContainer.setBackgroundResource(R.drawable.channel_panel_background)
+                binding.panelContent.orientation = LinearLayout.HORIZONTAL
+                groupParams.width = dp(160)
+                groupParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                channelParams.width = 0
+                channelParams.height = ViewGroup.LayoutParams.MATCH_PARENT
+                channelParams.weight = 1f
+                channelParams.marginStart = dp(18)
+                channelParams.topMargin = 0
+                groupListParams.width = ViewGroup.LayoutParams.MATCH_PARENT
+                groupListParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            }
+        }
 
         binding.panelContainer.layoutParams = params
         binding.groupContainer.layoutParams = groupParams
@@ -441,9 +488,17 @@ class ChannelPanelFragment : Fragment() {
                 this.row = row
                 rowBinding.channelNumber.text = row.displayNumber
                 rowBinding.channelTitle.text = row.title
-                rowBinding.channelProgram.text = row.currentProgram
+                rowBinding.channelProgram.text = row.programSummary.currentScheduleText
                 rowBinding.channelProgram.visibility =
-                    if (row.currentProgram.isBlank()) View.GONE else View.VISIBLE
+                    if (rowBinding.channelProgram.text.isNullOrBlank()) View.GONE else View.VISIBLE
+                rowBinding.channelProgramProgress.progress = row.programSummary.progressPercent ?: 0
+                rowBinding.channelProgramProgress.visibility =
+                    if (isSelected && row.programSummary.progressPercent != null) View.VISIBLE else View.GONE
+                rowBinding.channelNextProgram.text = row.programSummary.nextTitle.takeIf { it.isNotBlank() }?.let {
+                    "${getString(R.string.playback_next_prefix)}  $it"
+                }.orEmpty()
+                rowBinding.channelNextProgram.visibility =
+                    if (isSelected && rowBinding.channelNextProgram.text.isNotBlank()) View.VISIBLE else View.GONE
                 rowBinding.playingMarker.visibility =
                     if (row.isPlaying) View.VISIBLE else View.INVISIBLE
                 applySelection(isSelected)
@@ -456,6 +511,7 @@ class ChannelPanelFragment : Fragment() {
                 rowBinding.channelTitle.setTextColor(rowTitleColor(currentRow, isSelected))
                 rowBinding.channelNumber.setTextColor(rowMetaColor(currentRow, isSelected))
                 rowBinding.channelProgram.setTextColor(rowMetaColor(currentRow, isSelected))
+                rowBinding.channelNextProgram.setTextColor(rowMetaColor(currentRow, isSelected))
             }
 
             private fun loadLogo(imageView: ImageView, logo: String) {
