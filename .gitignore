@@ -19,6 +19,7 @@ local.properties
 
 # Claude Code generated files
 .claude/
+.context/
 CLAUDE.md
 TESTING_RTP_MULTICAST.md
 VLC集成测试报告模板.md
